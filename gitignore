@@ -1,27 +1,23 @@
 # Build outputs
-*.build/
-*.out/
-*..gradle/
-*.libs/
+build/
+out/
+.gradle/
 
 # IDE files
 .idea/
 *.iml
 *.ipr
 *.iws
-*.vscode/
+.vscode/
 
 # Runtime
-*.run/
-*.run-data/
-*.logs/
+run/
+run-data/
+logs/
 
 # OS files
 .DS_Store
 Thumbs.db
-*.swp
-*.swo
 
-# Temporary files
-*.log
-*.tmp
+# Libs
+libs/
