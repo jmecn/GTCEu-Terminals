@@ -44,3 +44,6 @@ jobs:
 
           curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+
+          modrinth-dependencies: |
+            gregtechceu-modern(required)
