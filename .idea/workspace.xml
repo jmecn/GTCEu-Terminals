@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b60a557e-ddaf-45db-b0b0-5b745af5c397" name="Changes" comment="gitignore" />
+    <list default="true" id="b60a557e-ddaf-45db-b0b0-5b745af5c397" name="Changes" comment="Initial Commit">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -75,7 +77,7 @@
 }</component>
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/BgameXL/Advanced-Terminal.git&quot;,
+    &quot;url&quot;: &quot;https://github.com/BgameXL/GTCEu-Terminals.git&quot;,
     &quot;accountId&quot;: &quot;068aefb2-6928-4679-9d80-168fd9fbf886&quot;
   }
 }</component>
@@ -211,6 +213,7 @@
       <workItem from="1767804866043" duration="51000" />
       <workItem from="1767811159205" duration="26286000" />
       <workItem from="1767838205540" duration="357000" />
+      <workItem from="1767838612444" duration="315000" />
     </task>
     <task id="LOCAL-00001" summary="Initial commit - GTCEu Terminals">
       <option name="closed" value="true" />
@@ -252,7 +255,23 @@
       <option name="project" value="LOCAL" />
       <updated>1767838399399</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="Initial Commit">
+      <option name="closed" value="true" />
+      <created>1767838666345</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1767838666345</updated>
+    </task>
+    <task id="LOCAL-00007" summary="Initial Commit">
+      <option name="closed" value="true" />
+      <created>1767838830832</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1767838830832</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -274,7 +293,8 @@
     <MESSAGE value="Initial commit - GTCEu Terminals" />
     <MESSAGE value="Initial Commit -GTCeu Terminals" />
     <MESSAGE value="gitignore" />
-    <option name="LAST_COMMIT_MESSAGE" value="gitignore" />
+    <MESSAGE value="Initial Commit" />
+    <option name="LAST_COMMIT_MESSAGE" value="Initial Commit" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
