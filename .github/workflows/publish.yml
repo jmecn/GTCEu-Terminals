@@ -45,10 +45,10 @@ jobs:
           curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
 
-          modrinth-dependencies: |
+          modrinth-dependencies:
             gregtechceu-modern(required)
             ldlib(required)
 
-          curseforge-dependencies: |
-          557242(required)
-          626676(required)
+          curseforge-dependencies:
+            557242(required)
+            626676(required)
