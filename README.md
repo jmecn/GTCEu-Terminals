@@ -25,8 +25,23 @@ This gadget allows you to shift + right-click a multiblock controller in order t
 This final gadget allows you to shift + right-click a multiblock controller in order to pick up all blocks that are a part of the structure and put them in the player's inventory. Any excess blocks picked up by the dismantler will be dropped on the ground if player inventory is full.
 
 
+### Supported Mods & Packs (coming soon)
 
+Any mods or modpacks listed below will have specially-tailored integrations for unique types of hatches and tiered casings within the mods.
+
+- **AstroGreg:Exsilium**
+- **TerraFirmaGreg**
+- **Phoenix Forge Technologies**
+- **GTM Things**
+
+
+
+Please report any bugs specific to these projects here so we can continue to support them. If you would like your project to be integrated feel free to leave a suggestion [here](https://github.com/BgameXL/GTCEu-Terminals/issues) on GitHub or contact us on [Discord](https://discord.gg/dUaZeV6Drp).
+
+### Credits
 
 Special Thanks to Haze Vista, for providing textures and ideas.
 
 Contributors are welcomed and encouraged!
+
+
