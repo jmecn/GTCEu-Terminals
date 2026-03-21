@@ -1,5 +1,6 @@
 package com.gtceuterminal.client.gui.dialog;
 
+import com.gtceuterminal.common.theme.ItemTheme;
 import com.gtceuterminal.common.multiblock.ComponentGroup;
 import com.gtceuterminal.common.multiblock.ComponentInfo;
 import com.gtceuterminal.common.multiblock.MultiblockInfo;
@@ -33,10 +34,11 @@ public class ComponentDetailDialog extends DialogWidget {
     private static final int dialogS = 10;
     private static final int UPGRADE_dialogW = 400;
 
-    private static final int COLOR_BG_DARK = 0xFF1A1A1A;
-    private static final int COLOR_BG_MEDIUM = 0xFF2B2B2B;
-    private static final int COLOR_BG_LIGHT = 0xFF3F3F3F;
-    private static final int COLOR_BORDER_LIGHT = 0xFF5A5A5A;
+    private ItemTheme theme;
+    private int COLOR_BG_DARK = 0xFF1A1A1A;
+    private int COLOR_BG_MEDIUM = 0xFF2B2B2B;
+    private int COLOR_BG_LIGHT = 0xFF3F3F3F;
+    private int COLOR_BORDER_LIGHT = 0xFF5A5A5A;
     private static final int COLOR_BORDER_DARK = 0xFF0A0A0A;
     private static final int COLOR_TEXT_WHITE = 0xFFFFFFFF;
     private static final int COLOR_TEXT_GRAY = 0xFFAAAAAA;
@@ -53,10 +55,19 @@ public class ComponentDetailDialog extends DialogWidget {
     }
 
     public ComponentDetailDialog(WidgetGroup parent, Player player, MultiblockInfo multiblock, Runnable onClose) {
+        this(parent, player, multiblock, onClose, null);
+    }
+
+    public ComponentDetailDialog(WidgetGroup parent, Player player, MultiblockInfo multiblock, Runnable onClose, ItemTheme passedTheme) {
         super(parent, true);
         this.player = player;
         this.multiblock = multiblock;
         this.onClose = onClose;
+        this.theme = passedTheme != null ? passedTheme : ItemTheme.loadFromPlayer(player);
+        this.COLOR_BG_DARK      = theme.bgColor;
+        this.COLOR_BG_MEDIUM    = theme.panelColor;
+        this.COLOR_BG_LIGHT     = theme.isNativeStyle() ? 0xFF3A3A3A : theme.accent(0xAA);
+        this.COLOR_BORDER_LIGHT = theme.isNativeStyle() ? 0xFF555555 : theme.accent(0xFF);
 
         initDialog();
     }
@@ -115,12 +126,14 @@ public class ComponentDetailDialog extends DialogWidget {
             this.H = contentH;
             setSize(new Size(contentW, contentH));
             setSelfPosition(new Position(x, y));
-            setBackground(new ColorRectTexture(COLOR_BG_DARK));
+            setBackground(theme.backgroundTexture());
 
-            addWidget(new ImageWidget(0, 0, contentW, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-            addWidget(new ImageWidget(0, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-            addWidget(new ImageWidget(contentW - 2, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_DARK)));
-            addWidget(new ImageWidget(0, contentH - 2, contentW, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
+            if (!theme.isNativeStyle()) {
+                addWidget(new ImageWidget(0, 0, contentW, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+                addWidget(new ImageWidget(0, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+                addWidget(new ImageWidget(contentW - 2, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_DARK)));
+                addWidget(new ImageWidget(0, contentH - 2, contentW, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
+            }
 
             addWidget(createHeader());
             addWidget(createInfoPanel());
@@ -132,10 +145,10 @@ public class ComponentDetailDialog extends DialogWidget {
             this.H = viewportH;
             setSize(new Size(viewportW, viewportH));
             setSelfPosition(new Position(x, y));
-            setBackground(new ColorRectTexture(COLOR_BG_DARK));
+            setBackground(theme.backgroundTexture());
 
             WidgetGroup content = new WidgetGroup(0, 0, contentW, contentH);
-            content.setBackground(new ColorRectTexture(COLOR_BG_DARK));
+            content.setBackground(theme.backgroundTexture());
 
             content.addWidget(new ImageWidget(0, 0, contentW, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
             content.addWidget(new ImageWidget(0, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
@@ -162,7 +175,7 @@ public class ComponentDetailDialog extends DialogWidget {
 
     private WidgetGroup createHeader() {
         WidgetGroup header = new WidgetGroup(2, 2, W - 4, 26);
-        header.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        header.setBackground(theme.panelTexture());
 
         String title = "§l§f" + getDisplayMultiblockName() + " - Components";
         LabelWidget titleLabel = new LabelWidget(10, 8, title);
@@ -174,7 +187,7 @@ public class ComponentDetailDialog extends DialogWidget {
 
     private WidgetGroup createInfoPanel() {
         WidgetGroup infoPanel = new WidgetGroup(10, 32, W - 20, 46);
-        infoPanel.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        infoPanel.setBackground(theme.panelTexture());
 
         int yPos = 6;
 
@@ -253,7 +266,7 @@ public class ComponentDetailDialog extends DialogWidget {
     // Creates a single entry for a component group
     private WidgetGroup createComponentGroupEntry(ComponentGroup group, int yPos, int entryW) {
         WidgetGroup entry = new WidgetGroup(0, yPos, entryW, 38);
-        entry.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        entry.setBackground(theme.panelTexture());
 
         ComponentInfo rep = group.getRepresentative();
         if (rep != null) {
@@ -318,7 +331,8 @@ public class ComponentDetailDialog extends DialogWidget {
                 this,
                 group,
                 multiblock,
-                player
+                player,
+                this.theme
         );
     }
 }

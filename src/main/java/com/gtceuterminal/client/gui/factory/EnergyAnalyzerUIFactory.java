@@ -16,6 +16,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import com.gtceuterminal.common.theme.ItemTheme;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -42,6 +43,7 @@ public class EnergyAnalyzerUIFactory extends UIFactory<EnergyAnalyzerUIFactory.E
     public void openUI(ServerPlayer player, int initialIndex) {
         // Collect snapshots server-side before opening
         ItemStack stack = findAnalyzerItem(player);
+        ItemTheme theme = ItemTheme.load(stack);
         List<EnergySnapshot> snapshots = new ArrayList<>();
         List<LinkedMachineData> machines = EnergyAnalyzerItem.loadMachines(stack);
 
@@ -67,7 +69,7 @@ public class EnergyAnalyzerUIFactory extends UIFactory<EnergyAnalyzerUIFactory.E
             }
         }
 
-        EnergyAnalyzerHolder holder = new EnergyAnalyzerHolder(false, snapshots, machines, initialIndex);
+        EnergyAnalyzerHolder holder = new EnergyAnalyzerHolder(false, snapshots, machines, initialIndex, theme);
         super.openUI(holder, player);
     }
 
@@ -87,6 +89,7 @@ public class EnergyAnalyzerUIFactory extends UIFactory<EnergyAnalyzerUIFactory.E
 
     @Override
     protected EnergyAnalyzerHolder readHolderFromSyncData(FriendlyByteBuf buf) {
+        GTCEUTerminalMod.LOGGER.info("=== readHolderFromSyncData called");
         int index = buf.readInt();
         int count = buf.readInt();
         List<EnergySnapshot> snapshots = new ArrayList<>();
@@ -96,7 +99,9 @@ public class EnergyAnalyzerUIFactory extends UIFactory<EnergyAnalyzerUIFactory.E
         List<LinkedMachineData> machines = new ArrayList<>();
         for (int i = 0; i < mcount; i++) machines.add(LinkedMachineData.fromNBT(buf.readNbt()));
 
-        return new EnergyAnalyzerHolder(true, snapshots, machines, index);
+        net.minecraft.nbt.CompoundTag themeTag = buf.readNbt();
+        ItemTheme theme = ItemTheme.fromNBT(themeTag);
+        return new EnergyAnalyzerHolder(true, snapshots, machines, index, theme);
     }
 
     @Override
@@ -106,6 +111,7 @@ public class EnergyAnalyzerUIFactory extends UIFactory<EnergyAnalyzerUIFactory.E
         for (EnergySnapshot s : holder.snapshots) s.encode(buf);
         buf.writeInt(holder.machines.size());
         for (LinkedMachineData m : holder.machines) buf.writeNbt(m.toNBT());
+        buf.writeNbt(holder.theme.toNBT());
     }
 
     // ─── Helper ───────────────────────────────────────────────────────────────
@@ -125,13 +131,15 @@ public class EnergyAnalyzerUIFactory extends UIFactory<EnergyAnalyzerUIFactory.E
         public final List<EnergySnapshot> snapshots;
         public final List<LinkedMachineData> machines;
         public final int initialIndex;
+        public final ItemTheme theme;
 
         public EnergyAnalyzerHolder(boolean remote, List<EnergySnapshot> snapshots,
-                                     List<LinkedMachineData> machines, int initialIndex) {
+                                    List<LinkedMachineData> machines, int initialIndex, ItemTheme theme) {
             this.remote = remote;
             this.snapshots = snapshots;
             this.machines = machines;
             this.initialIndex = initialIndex;
+            this.theme = theme != null ? theme : new ItemTheme();
         }
 
         public void attach(Player p) { if (this.player == null) this.player = p; }

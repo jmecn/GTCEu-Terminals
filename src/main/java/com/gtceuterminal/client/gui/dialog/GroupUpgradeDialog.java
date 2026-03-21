@@ -1,6 +1,8 @@
 package com.gtceuterminal.client.gui.dialog;
 
 import com.gregtechceu.gtceu.api.GTValues;
+
+import com.gtceuterminal.common.theme.ItemTheme;
 import com.gtceuterminal.common.material.ComponentUpgradeHelper;
 import com.gtceuterminal.common.material.MaterialAvailability;
 import com.gtceuterminal.common.material.MaterialCalculator;
@@ -34,10 +36,11 @@ public class GroupUpgradeDialog extends DialogWidget {
     private static final int dialogH = 260;
 
     // GTCEu Colors
-    private static final int COLOR_BG_DARK = 0xFF1A1A1A;
-    private static final int COLOR_BG_MEDIUM = 0xFF2B2B2B;
-    private static final int COLOR_BG_LIGHT = 0xFF3F3F3F;
-    private static final int COLOR_BORDER_LIGHT = 0xFF5A5A5A;
+    private ItemTheme theme;
+    private int COLOR_BG_DARK = 0xFF1A1A1A;
+    private int COLOR_BG_MEDIUM = 0xFF2B2B2B;
+    private int COLOR_BG_LIGHT = 0xFF3F3F3F;
+    private int COLOR_BORDER_LIGHT = 0xFF5A5A5A;
     private static final int COLOR_BORDER_DARK = 0xFF0A0A0A;
     private static final int COLOR_TEXT_WHITE = 0xFFFFFFFF;
     private static final int COLOR_TEXT_GRAY = 0xFFAAAAAA;
@@ -74,6 +77,13 @@ public class GroupUpgradeDialog extends DialogWidget {
         this.onClose = onClose;
         this.controllerPos = controllerPos;
 
+        // Apply theme — searches full inventory so the preset works regardless of hand
+        this.theme = ItemTheme.loadFromPlayer(player);
+        this.COLOR_BG_DARK      = theme.bgColor;
+        this.COLOR_BG_MEDIUM    = theme.panelColor;
+        this.COLOR_BG_LIGHT     = theme.isNativeStyle() ? 0xFF3A3A3A : theme.accent(0xAA);
+        this.COLOR_BORDER_LIGHT = theme.isNativeStyle() ? 0xFF555555 : theme.accent(0xFF);
+
         initDialog();
     }
 
@@ -104,12 +114,14 @@ public class GroupUpgradeDialog extends DialogWidget {
         setSize(new Size(w, h));
         setSelfPosition(new Position(x, y));
 
-        setBackground(new ColorRectTexture(COLOR_BG_DARK));
+        setBackground(theme.backgroundTexture());
 
-        addWidget(new ImageWidget(0, 0, w, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-        addWidget(new ImageWidget(0, 0, 2, h, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-        addWidget(new ImageWidget(w - 2, 0, 2, h, new ColorRectTexture(COLOR_BORDER_DARK)));
-        addWidget(new ImageWidget(0, h - 2, w, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
+        if (!theme.isNativeStyle()) {
+            addWidget(new ImageWidget(0, 0, w, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+            addWidget(new ImageWidget(0, 0, 2, h, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+            addWidget(new ImageWidget(w - 2, 0, 2, h, new ColorRectTexture(COLOR_BORDER_DARK)));
+            addWidget(new ImageWidget(0, h - 2, w, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
+        }
 
         // Calculate materials
         calculateMaterials();
@@ -155,7 +167,7 @@ public class GroupUpgradeDialog extends DialogWidget {
 
     private WidgetGroup createHeader() {
         WidgetGroup header = new WidgetGroup(2, 2, W - 4, 28);
-        header.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        header.setBackground(theme.panelTexture());
 
         LabelWidget title = new LabelWidget(W / 2 - 90, 10, "§l§fUpgrade Group Confirmation");
         title.setTextColor(COLOR_TEXT_WHITE);
@@ -166,7 +178,7 @@ public class GroupUpgradeDialog extends DialogWidget {
 
     private WidgetGroup createGroupInfo() {
         WidgetGroup info = new WidgetGroup(10, 35, W - 20, 60);
-        info.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        info.setBackground(theme.panelTexture());
 
         int yPos = 8;
 
@@ -206,7 +218,7 @@ public class GroupUpgradeDialog extends DialogWidget {
 
     private WidgetGroup createCreativePanel() {
         WidgetGroup panel = new WidgetGroup(10, 100, W - 20, 40);
-        panel.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        panel.setBackground(theme.panelTexture());
 
         LabelWidget creativeMsg = new LabelWidget(10, 15,
                 "§aCreative Mode - No materials required");
@@ -219,7 +231,7 @@ public class GroupUpgradeDialog extends DialogWidget {
     private WidgetGroup createSurvivalPanel() {
         int listHeight = Math.min(materials.size() * 12 + 25, 110);
         WidgetGroup panel = new WidgetGroup(10, 100, W - 20, listHeight);
-        panel.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        panel.setBackground(theme.panelTexture());
 
         // Header
         LabelWidget headerLabel = new LabelWidget(10, 5, "§7Required materials:");

@@ -1,5 +1,6 @@
 package com.gtceuterminal.client.gui.dialog;
 
+import com.gtceuterminal.common.theme.ItemTheme;
 import com.gtceuterminal.GTCEUTerminalMod;
 import com.gtceuterminal.client.gui.multiblock.ComponentDetailUI;
 import com.gtceuterminal.client.gui.widget.LDLMaterialListWidget;
@@ -53,10 +54,11 @@ public class ComponentUpgradeDialog extends DialogWidget {
     private static final int dialogH = 380;
     private static final int dialogS = 10;
 
-    private static final int COLOR_BG_DARK = 0xFF1A1A1A;
-    private static final int COLOR_BG_MEDIUM = 0xFF2B2B2B;
-    private static final int COLOR_BG_LIGHT = 0xFF3F3F3F;
-    private static final int COLOR_BORDER_LIGHT = 0xFF5A5A5A;
+    private ItemTheme theme;
+    private int COLOR_BG_DARK = 0xFF1A1A1A;
+    private int COLOR_BG_MEDIUM = 0xFF2B2B2B;
+    private int COLOR_BG_LIGHT = 0xFF3F3F3F;
+    private int COLOR_BORDER_LIGHT = 0xFF5A5A5A;
     private static final int COLOR_BORDER_DARK = 0xFF0A0A0A;
     private static final int COLOR_TEXT_WHITE = 0xFFFFFFFF;
     private static final int COLOR_TEXT_GRAY = 0xFFAAAAAA;
@@ -103,6 +105,18 @@ public class ComponentUpgradeDialog extends DialogWidget {
             MultiblockInfo multiblock,
             Player player
     ) {
+        this(parent, parentUI, parentDialog, group, multiblock, player, null);
+    }
+
+    public ComponentUpgradeDialog(
+            WidgetGroup parent,
+            ComponentDetailUI parentUI,
+            DialogWidget parentDialog,
+            ComponentGroup group,
+            MultiblockInfo multiblock,
+            Player player,
+            ItemTheme passedTheme
+    ) {
         super(parent, true);
 
         this.parentUI = parentUI;
@@ -110,6 +124,19 @@ public class ComponentUpgradeDialog extends DialogWidget {
         this.group = group;
         this.multiblock = multiblock;
         this.player = player;
+
+        // Use passed theme if available (avoids inventory search issues inside open GUIs)
+        this.theme = passedTheme != null ? passedTheme : ItemTheme.loadFromPlayer(player);
+        com.gtceuterminal.GTCEUTerminalMod.LOGGER.info(
+                "ComponentUpgradeDialog: theme source={} accent=#{} bg=#{} style={}",
+                passedTheme != null ? "PASSED" : "SEARCHED",
+                Integer.toHexString(this.theme.accentColor & 0xFFFFFF).toUpperCase(),
+                Integer.toHexString(this.theme.bgColor     & 0xFFFFFF).toUpperCase(),
+                this.theme.uiStyle);
+        this.COLOR_BG_DARK      = theme.bgColor;
+        this.COLOR_BG_MEDIUM    = theme.panelColor;
+        this.COLOR_BG_LIGHT     = theme.isNativeStyle() ? 0xFF3A3A3A : theme.accent(0xAA);
+        this.COLOR_BORDER_LIGHT = theme.isNativeStyle() ? 0xFF555555 : theme.accent(0xFF);
 
         initDialog();
     }
@@ -143,12 +170,14 @@ public class ComponentUpgradeDialog extends DialogWidget {
         if (contentW <= maxW && contentH <= maxH) {
             setSize(new Size(contentW, contentH));
             setSelfPosition(new Position(x, y));
-            setBackground(new ColorRectTexture(COLOR_BG_DARK));
+            setBackground(theme.backgroundTexture());
 
-            addWidget(new ImageWidget(0, 0, contentW, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-            addWidget(new ImageWidget(0, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-            addWidget(new ImageWidget(contentW - 2, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_DARK)));
-            addWidget(new ImageWidget(0, contentH - 2, contentW, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
+            if (!theme.isNativeStyle()) {
+                addWidget(new ImageWidget(0, 0, contentW, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+                addWidget(new ImageWidget(0, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+                addWidget(new ImageWidget(contentW - 2, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_DARK)));
+                addWidget(new ImageWidget(0, contentH - 2, contentW, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
+            }
 
             addWidget(createHeader());
             addWidget(createInfoPanel());
@@ -163,15 +192,17 @@ public class ComponentUpgradeDialog extends DialogWidget {
         } else {
             setSize(new Size(viewportW, viewportH));
             setSelfPosition(new Position(x, y));
-            setBackground(new ColorRectTexture(COLOR_BG_DARK));
+            setBackground(theme.backgroundTexture());
 
             WidgetGroup content = new WidgetGroup(0, 0, contentW, contentH);
-            content.setBackground(new ColorRectTexture(COLOR_BG_DARK));
+            content.setBackground(theme.backgroundTexture());
 
-            content.addWidget(new ImageWidget(0, 0, contentW, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-            content.addWidget(new ImageWidget(0, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-            content.addWidget(new ImageWidget(contentW - 2, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_DARK)));
-            content.addWidget(new ImageWidget(0, contentH - 2, contentW, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
+            if (!theme.isNativeStyle()) {
+                content.addWidget(new ImageWidget(0, 0, contentW, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+                content.addWidget(new ImageWidget(0, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+                content.addWidget(new ImageWidget(contentW - 2, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_DARK)));
+                content.addWidget(new ImageWidget(0, contentH - 2, contentW, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
+            }
 
             content.addWidget(createHeader());
             content.addWidget(createInfoPanel());
@@ -208,7 +239,7 @@ public class ComponentUpgradeDialog extends DialogWidget {
 
     private WidgetGroup createHeader() {
         WidgetGroup header = new WidgetGroup(2, 2, W - 4, 24);
-        header.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        header.setBackground(theme.panelTexture());
 
         String title = "§l§fUpgrade " + group.getType().name().replace("_", " ");
         LabelWidget titleLabel = new LabelWidget(10, 7, title);
@@ -220,7 +251,7 @@ public class ComponentUpgradeDialog extends DialogWidget {
 
     private WidgetGroup createInfoPanel() {
         WidgetGroup panel = new WidgetGroup(10, 30, dialogW - 20, 36);
-        panel.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        panel.setBackground(theme.panelTexture());
 
         ComponentInfo rep = group.getRepresentative();
         if (rep != null) {
@@ -243,7 +274,7 @@ public class ComponentUpgradeDialog extends DialogWidget {
         ComponentInfo rep = group.getRepresentative();
 
         WidgetGroup panel = new WidgetGroup(10, 70, dialogW - 20, 75);
-        panel.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        panel.setBackground(theme.panelTexture());
 
         if (rep == null) return panel;
         if (tierFilter == null) tierFilter = rep.getTier();
@@ -600,14 +631,37 @@ public class ComponentUpgradeDialog extends DialogWidget {
         confirmButton.setButtonTexture(new TextTexture("§eConfirm Change")
                 .setWidth(140)
                 .setType(TextTexture.TextType.NORMAL));
-
         confirmButton.setHoverTexture(new GuiTextureGroup(
                 new ColorRectTexture(0xFF43A047),
                 new ColorBorderTexture(1, COLOR_TEXT_WHITE)
         ));
 
+        // Auto-craft button — only shown when ME is linked
+        boolean showAutoCraft = WirelessTerminalHandler.isLinked(getWirelessTerminal(player));
+        if (showAutoCraft) {
+            ButtonWidget autoCraftBtn = new ButtonWidget(
+                    145, 0, 100, 22,
+                    new GuiTextureGroup(
+                            new ColorRectTexture(0xFF1A3A6B),
+                            new ColorBorderTexture(1, 0xFF2E75B6)
+                    ),
+                    cd -> performAutoCraft()
+            );
+            autoCraftBtn.setButtonTexture(new TextTexture("§9⚙ Auto-craft")
+                    .setWidth(100)
+                    .setType(TextTexture.TextType.NORMAL));
+            autoCraftBtn.setHoverTexture(new GuiTextureGroup(
+                    new ColorRectTexture(0xFF243A6B),
+                    new ColorBorderTexture(1, COLOR_TEXT_WHITE)
+            ));
+            buttons.addWidget(autoCraftBtn);
+        }
+
+        int cancelX = showAutoCraft ? dialogW - 20 - 100 : dialogW - 20 - 140;
+        int cancelW = showAutoCraft ? 96 : 140;
+
         ButtonWidget cancel = new ButtonWidget(
-                dialogW - 20 - 140, 0, 140, 22,
+                cancelX, 0, cancelW, 22,
                 new GuiTextureGroup(
                         new ColorRectTexture(COLOR_BG_LIGHT),
                         new ColorBorderTexture(1, COLOR_BORDER_LIGHT)
@@ -615,7 +669,7 @@ public class ComponentUpgradeDialog extends DialogWidget {
                 cd -> close()
         );
         cancel.setButtonTexture(new TextTexture("§fCancel")
-                .setWidth(140)
+                .setWidth(cancelW)
                 .setType(TextTexture.TextType.NORMAL));
         cancel.setHoverTexture(new GuiTextureGroup(
                 new ColorRectTexture(COLOR_BG_LIGHT),
@@ -626,6 +680,32 @@ public class ComponentUpgradeDialog extends DialogWidget {
         buttons.addWidget(cancel);
 
         return buttons;
+    }
+
+    /** Triggers the analysis-then-confirm flow via ME for this upgrade. */
+    private void performAutoCraft() {
+        if (selectedTier == -1 && (selectedUpgradeId == null || selectedUpgradeId.isBlank())) {
+            player.displayClientMessage(
+                    net.minecraft.network.chat.Component.literal("§eSelect an upgrade option first."), true);
+            return;
+        }
+
+        List<com.gtceuterminal.common.multiblock.ComponentInfo> components =
+                new ArrayList<>(group.getComponents());
+
+        TerminalNetwork.CHANNEL.sendToServer(
+                new com.gtceuterminal.common.network.CPacketRequestUpgradeAnalysis(
+                        components,
+                        selectedTier,
+                        selectedUpgradeId != null ? selectedUpgradeId : "",
+                        multiblock.getControllerPos()
+                )
+        );
+
+        player.displayClientMessage(
+                net.minecraft.network.chat.Component.literal("§7Analyzing ME Network..."), true);
+        close();
+        if (parentDialog != null) parentDialog.close();
     }
 
     private void refreshTierSelectionPanel() {

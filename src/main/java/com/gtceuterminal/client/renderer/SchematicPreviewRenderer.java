@@ -1,6 +1,7 @@
 package com.gtceuterminal.client.renderer;
 
 import com.gtceuterminal.common.data.SchematicData;
+import com.gtceuterminal.common.util.SchematicUtils;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 
@@ -12,11 +13,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
-// Renders a schematic preview as ghost blocks in the world
+/**
+ * Renders schematic ghost blocks in the world.
+ * All rotation and distance math is delegated to {@link SchematicUtils}.
+ */
 public class SchematicPreviewRenderer {
 
     public static void renderGhostBlocks(PoseStack poseStack,
@@ -24,9 +26,8 @@ public class SchematicPreviewRenderer {
                                          SchematicData schematic,
                                          Minecraft minecraft,
                                          CompoundTag clipboardTag) {
-        if (schematic == null || schematic.getBlocks().isEmpty() || minecraft.level == null || minecraft.player == null) {
-            return;
-        }
+        if (schematic == null || schematic.getBlocks().isEmpty()
+                || minecraft.level == null || minecraft.player == null) return;
 
         Direction originalFacing = Direction.SOUTH;
         try {
@@ -35,152 +36,85 @@ public class SchematicPreviewRenderer {
                 Direction byName = Direction.byName(facingStr);
                 if (byName != null) originalFacing = byName;
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
 
-        double distance = calculateOptimalDistance(schematic);
-
-        BlockPos targetPos = getTargetPlacementPos(minecraft, distance);
-        if (targetPos == null) {
-            return;
-        }
+        double distance    = SchematicUtils.calculateOptimalDistance(schematic);
+        BlockPos targetPos = SchematicUtils.getTargetPlacementPos(minecraft.player, distance);
+        if (targetPos == null) return;
 
         Vec3 cameraPos = minecraft.gameRenderer.getMainCamera().getPosition();
-        if (cameraPos.distanceTo(Vec3.atCenterOf(targetPos)) > 20.0) {
-            return;
-        }
+        if (cameraPos.distanceTo(Vec3.atCenterOf(targetPos)) > 20.0) return;
 
-        Direction playerFacing = getPlayerHorizontalFacing(minecraft.player);
+        Direction playerFacing = minecraft.player.getDirection();
         Direction targetFacing = playerFacing.getOpposite();
+        int rotationSteps = SchematicUtils.getRotationSteps(originalFacing, targetFacing);
 
-        int rotationSteps = getRotationSteps(originalFacing, targetFacing);
+
+        // Apply the same Y-offset as SchematicPaster so the preview aligns with the paste.
+        int minRelY = schematic.getBlocks().keySet().stream()
+                .mapToInt(pos -> SchematicUtils.rotatePositionSteps(pos, rotationSteps).getY())
+                .min().orElse(0);
+        BlockPos adjustedTarget = targetPos.above(-minRelY);
 
         BlockRenderDispatcher blockRenderer = minecraft.getBlockRenderer();
 
-        // Render each block in the schematic
         for (var entry : schematic.getBlocks().entrySet()) {
-            BlockPos relativePos = entry.getKey();
-            BlockState state = entry.getValue();
+            BlockPos   relativePos  = entry.getKey();
+            BlockState state        = entry.getValue();
 
-            BlockPos rotatedPos = rotatePositionSteps(relativePos, rotationSteps);
-            BlockPos worldPos = targetPos.offset(rotatedPos);
-
-            BlockState rotatedState = rotateBlockStateSteps(state, rotationSteps);
-
+            BlockPos   rotatedPos   = SchematicUtils.rotatePositionSteps(relativePos, rotationSteps);
+            BlockState rotatedState = SchematicUtils.rotateBlockStateSteps(state, rotationSteps);
+            BlockPos   worldPos     = adjustedTarget.offset(rotatedPos);
             poseStack.pushPose();
             poseStack.translate(
                     worldPos.getX() - cameraPos.x,
                     worldPos.getY() - cameraPos.y,
-                    worldPos.getZ() - cameraPos.z
-            );
-
+                    worldPos.getZ() - cameraPos.z);
             try {
-                blockRenderer.renderSingleBlock(
-                        rotatedState,
-                        poseStack,
-                        bufferSource,
-                        15728880,  // full bright
-                        OverlayTexture.NO_OVERLAY
-                );
-            } catch (Exception ignored) {
-                // Skip rendering this block if there's an error
-            }
-
+                blockRenderer.renderSingleBlock(rotatedState, poseStack, bufferSource,
+                        15728880, OverlayTexture.NO_OVERLAY);
+            } catch (Exception ignored) {}
             poseStack.popPose();
         }
     }
 
-    private static int getRotationSteps(Direction from, Direction to) {
-        return (to.get2DDataValue() - from.get2DDataValue() + 4) % 4;
-    }
+    /**
+     * Renders a schematic as ghost blocks at the PoseStack's current origin.
+     * Used by ClientEvents to render PlannerState ghosts — the caller must
+     * translate the PoseStack to the ghost's world origin first.
+     */
+    public static void renderGhostBlocksAtOrigin(PoseStack poseStack,
+                                                 MultiBufferSource bufferSource,
+                                                 SchematicData schematic,
+                                                 Minecraft minecraft,
+                                                 int rotSteps) {
+        if (schematic == null || schematic.getBlocks().isEmpty()) return;
 
-    private static BlockPos rotatePositionSteps(BlockPos pos, int steps) {
-        BlockPos result = pos;
-        for (int i = 0; i < steps; i++) {
-            // (x, z) -> (-z, x)
-            result = new BlockPos(-result.getZ(), result.getY(), result.getX());
+        BlockRenderDispatcher blockRenderer = minecraft.getBlockRenderer();
+
+        for (var entry : schematic.getBlocks().entrySet()) {
+            BlockPos   relPos       = entry.getKey();
+            BlockState state        = entry.getValue();
+            if (state.isAir()) continue;
+
+            BlockPos   rotated      = SchematicUtils.rotatePositionSteps(relPos, rotSteps);
+            BlockState rotatedState = SchematicUtils.rotateBlockStateSteps(state, rotSteps);
+
+            poseStack.pushPose();
+            poseStack.translate(rotated.getX(), rotated.getY(), rotated.getZ());
+            try {
+                blockRenderer.renderSingleBlock(rotatedState, poseStack, bufferSource,
+                        15728880, OverlayTexture.NO_OVERLAY);
+            } catch (Exception ignored) {}
+            poseStack.popPose();
         }
-        return result;
     }
 
-    private static BlockState rotateBlockStateSteps(BlockState state, int steps) {
-        BlockState result = state;
-        for (int i = 0; i < steps; i++) {
-            result = rotateBlockStateOnce(result);
-        }
-        return result;
-    }
-
-    private static BlockState rotateBlockStateOnce(BlockState state) {
-        try {
-            // HORIZONTAL_FACING
-            if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING)) {
-                Direction facing = state.getValue(
-                        net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING);
-                if (facing.getAxis().isHorizontal()) {
-                    return state.setValue(
-                            net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING,
-                            facing.getClockWise()
-                    );
-                }
-            }
-
-            // FACING
-            if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING)) {
-                Direction facing = state.getValue(
-                        net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING);
-                if (facing.getAxis().isHorizontal()) {
-                    return state.setValue(
-                            net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING,
-                            facing.getClockWise()
-                    );
-                }
-            }
-        } catch (Exception ignored) {
-        }
-
-        return state;
-    }
-
-    private static double calculateOptimalDistance(SchematicData schematic) {
-        BlockPos size = schematic.getSize();
-        int maxDimension = Math.max(size.getX(), Math.max(size.getY(), size.getZ()));
-
-        double distance = 4.0 + (maxDimension / 2.0);
-        return Math.min(15.0, Math.max(4.0, distance));
-    }
-
+    /**
+     * Returns the world position where the schematic preview should appear.
+     * Kept public so the behavior can call it for consistent paste-on-preview placement.
+     */
     public static BlockPos getTargetPlacementPos(Minecraft minecraft, double distance) {
-        double raycastDistance = Math.max(10.0, distance + 5.0);
-        HitResult hitResult = minecraft.player.pick(raycastDistance, minecraft.getFrameTime(), false);
-
-        if (hitResult != null && hitResult.getType() == HitResult.Type.BLOCK) {
-            BlockHitResult blockHit = (BlockHitResult) hitResult;
-            return blockHit.getBlockPos().relative(blockHit.getDirection());
-        }
-
-        Vec3 eyePos = minecraft.player.getEyePosition();
-        Vec3 lookVec = minecraft.player.getLookAngle();
-        Vec3 targetVec = eyePos.add(lookVec.scale(distance));
-
-        return new BlockPos(
-                (int) Math.floor(targetVec.x),
-                (int) Math.floor(targetVec.y),
-                (int) Math.floor(targetVec.z)
-        );
-    }
-
-    private static Direction getPlayerHorizontalFacing(net.minecraft.world.entity.player.Player player) {
-        float yaw = (player.getYRot() % 360 + 360) % 360;
-
-        if (yaw >= 315 || yaw < 45) {
-            return Direction.SOUTH;
-        } else if (yaw >= 45 && yaw < 135) {
-            return Direction.WEST;
-        } else if (yaw >= 135 && yaw < 225) {
-            return Direction.NORTH;
-        } else {
-            return Direction.EAST;
-        }
+        return SchematicUtils.getTargetPlacementPos(minecraft.player, distance);
     }
 }

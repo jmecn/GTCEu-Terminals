@@ -19,7 +19,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -49,31 +48,20 @@ public class ComponentUpgrader {
             ItemStack wirelessTerminal
     ) {
 
-       /** boolean hasId = targetUpgradeId != null && !targetUpgradeId.isBlank();
-        if (hasId) {
-            ResourceLocation rl = ResourceLocation.tryParse(targetUpgradeId);
-            if (rl == null) return UpgradeResult.fail("Invalid upgrade id: " + targetUpgradeId);
-
-            Block targetBlock = BuiltInRegistries.BLOCK.get(rl);
-            if (targetBlock == Blocks.AIR) return UpgradeResult.fail("Unknown upgrade block: " + targetUpgradeId);
-
-        }**/
-
         boolean isCreative = player.isCreative();
         String extractionSource = "";
 
-        // If a concrete target ID is provided, validate it and resolve required items by ID.
+        // If a concrete target ID is provided, validate it early before doing any work.
         // Otherwise, fall back to the standard tier-based upgrade path.
         if (targetUpgradeId != null && !targetUpgradeId.isBlank()) {
-            /**ResourceLocation rl = ResourceLocation.tryParse(targetUpgradeId);
+            ResourceLocation rl = ResourceLocation.tryParse(targetUpgradeId);
             if (rl == null) {
                 return new UpgradeResult(false, "Invalid upgrade id: " + targetUpgradeId);
             }
-
             Block targetBlock = BuiltInRegistries.BLOCK.get(rl);
             if (targetBlock == Blocks.AIR) {
                 return new UpgradeResult(false, "Unknown upgrade block: " + targetUpgradeId);
-            } **/
+            }
         } else {
             if (!isCreative && !ComponentUpgradeHelper.canUpgrade(component, targetTier)) {
                 return new UpgradeResult(false, "Cannot upgrade to tier " + targetTier);
@@ -230,11 +218,11 @@ public class ComponentUpgrader {
                 ? targetUpgradeId
                 : com.gregtechceu.gtceu.api.GTValues.VN[targetTier];
 
-        /** GTCEUTerminalMod.LOGGER.info("Upgraded {} at {} from {} to {} (Block: {} -> {}){}",
+        GTCEUTerminalMod.LOGGER.info("Upgraded {} at {} from {} to {} (Block: {} -> {}){}",
                 component.getType(), pos, component.getTierName(),
                 targetLabel,
                 oldBlock.getDescriptionId(), newBlock.getDescriptionId(),
-                extractionSource.replace("§a", "").replace("§7", "")); **/
+                extractionSource.replace("§a", "").replace("§7", ""));
 
         return new UpgradeResult(true, "Successfully upgraded to " + targetLabel + extractionSource);
     }

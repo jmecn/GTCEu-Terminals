@@ -102,6 +102,8 @@ legacyForge {
 
 dependencies {
 
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
     // JetBrains Annotations
     compileOnly'org.jetbrains:annotations:24.0.1'
 

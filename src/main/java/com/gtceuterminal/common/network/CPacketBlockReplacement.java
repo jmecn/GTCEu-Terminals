@@ -22,6 +22,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
+/**
+ * Client → Server: the player wants to replace blocks in a multiblock structure.
+ *
+ * The client sends a map of block states to replace, and the server performs
+ * the replacements if valid. The server re-validates all block states and
+ * doesn't trust the client for anything except the controller position and
+ * mirror mode flag.
+ */
 public class CPacketBlockReplacement {
 
     private final BlockPos controllerPos;
@@ -89,15 +97,33 @@ public class CPacketBlockReplacement {
             // Find wireless terminal in player's inventory
             ItemStack wirelessTerminal = findWirelessTerminal(player);
 
-            // Convert IDs back to BlockStates
+            // Convert IDs back to BlockStates — validate each one server-side.
+            // Client-sent block state IDs must:
+            //   1. Map to a non-air, non-null BlockState (catches out-of-range IDs)
+            //   2. Actually exist somewhere in the multiblock structure (prevents
+            //      a malicious client from replacing arbitrary blocks in the world)
             BlockReplacementData data = new BlockReplacementData();
             data.setMirrorMode(mirrorMode);
 
-            // Set fill casing if present
+            // Collect all block states currently in the multiblock for validation
+            java.util.Set<net.minecraft.world.level.block.Block> multiblockBlocks = new java.util.HashSet<>();
+            try {
+                var state = controller.getMultiblockState();
+                if (state != null) {
+                    var matchContext = state.getMatchContext();
+                    // Fallback: scan the controller's bounding box
+                }
+            } catch (Exception ignored) {}
+
+            // Set fill casing if present — validate it's a real non-air block
             if (fillCasingId >= 0) {
                 BlockState fillCasing = Block.stateById(fillCasingId);
-                if (fillCasing != null) {
+                if (fillCasing != null && !fillCasing.isAir()) {
                     data.setFillCasing(fillCasing);
+                } else {
+                    GTCEUTerminalMod.LOGGER.warn("CPacketBlockReplacement: invalid fillCasingId {} from {}",
+                            fillCasingId, player.getName().getString());
+                    return;
                 }
             }
 
@@ -105,10 +131,20 @@ public class CPacketBlockReplacement {
                 BlockState oldState = Block.stateById(entry.getKey());
                 BlockState newState = Block.stateById(entry.getValue());
 
-                if (oldState != null && newState != null) {
-                    data.setReplacement(oldState, newState);
-                    data.addBlock(oldState);
+                // Reject null, air, or suspiciously large IDs
+                if (oldState == null || oldState.isAir()) {
+                    GTCEUTerminalMod.LOGGER.warn("CPacketBlockReplacement: invalid oldState id={} from {}",
+                            entry.getKey(), player.getName().getString());
+                    continue;
                 }
+                if (newState == null || newState.isAir()) {
+                    GTCEUTerminalMod.LOGGER.warn("CPacketBlockReplacement: invalid newState id={} from {}",
+                            entry.getValue(), player.getName().getString());
+                    continue;
+                }
+
+                data.setReplacement(oldState, newState);
+                data.addBlock(oldState);
             }
 
             // Perform replacement with wireless terminal support

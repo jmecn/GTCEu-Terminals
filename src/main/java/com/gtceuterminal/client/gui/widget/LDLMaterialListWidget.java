@@ -1,5 +1,6 @@
 package com.gtceuterminal.client.gui.widget;
 
+import com.gtceuterminal.common.ae2.MENetworkScanner;
 import com.gtceuterminal.common.material.MaterialAvailability;
 
 import com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture;
@@ -148,11 +149,13 @@ public class LDLMaterialListWidget extends WidgetGroup {
             tooltip.add(Component.literal("  §8Chests: 0"));
         }
 
-        // ME Network - MODIFICADO para mostrar "(pending verification)"
-        if (mat.getInMENetwork() > 0) {
-            tooltip.add(Component.literal("  §e§lME Network: §f" + mat.getInMENetwork() + " §8(pending verification)"));
-        } else {
-            tooltip.add(Component.literal("  §8ME Network: 0"));
+        // ME Network — only shown when AE2 is present
+        if (MENetworkScanner.isAE2Available()) {
+            if (mat.getInMENetwork() > 0) {
+                tooltip.add(Component.literal("  §e§lME Network: §f" + mat.getInMENetwork() + " §8(pending verification)"));
+            } else {
+                tooltip.add(Component.literal("  §8ME Network: 0"));
+            }
         }
 
         // Status

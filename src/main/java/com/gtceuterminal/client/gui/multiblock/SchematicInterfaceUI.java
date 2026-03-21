@@ -1,12 +1,17 @@
 package com.gtceuterminal.client.gui.multiblock;
 
+import com.gtceuterminal.client.gui.widget.WallpaperWidget;
 import com.gtceuterminal.GTCEUTerminalMod;
-import com.gtceuterminal.client.gui.factory.SchematicUIFactory;
 import com.gtceuterminal.client.gui.widget.SchematicPreviewWidget;
 import com.gtceuterminal.common.data.SchematicData;
 import com.gtceuterminal.common.network.CPacketSchematicAction;
 import com.gtceuterminal.common.network.TerminalNetwork;
+import com.gtceuterminal.client.gui.theme.ThemeEditorDialog;
+import com.gtceuterminal.common.theme.ItemTheme;
+import com.gtceuterminal.client.gui.factory.SchematicItemUIFactory;
 
+import com.lowdragmc.lowdraglib.gui.factory.HeldItemUIFactory;
+import com.lowdragmc.lowdraglib.gui.modular.IUIHolder;
 import com.lowdragmc.lowdraglib.gui.modular.ModularUI;
 import com.lowdragmc.lowdraglib.gui.texture.*;
 import com.lowdragmc.lowdraglib.gui.widget.*;
@@ -29,38 +34,62 @@ public class SchematicInterfaceUI {
     private static final int GUI_WIDTH = 480;
     private static final int GUI_HEIGHT = 320;
 
-    private static final int COLOR_BG_DARK = 0xFF1A1A1A;
-    private static final int COLOR_BG_MEDIUM = 0xFF2B2B2B;
-    private static final int COLOR_BG_LIGHT = 0xFF3F3F3F;
-    private static final int COLOR_BORDER_LIGHT = 0xFF5A5A5A;
-    private static final int COLOR_BORDER_DARK = 0xFF0A0A0A;
-    private static final int COLOR_TEXT_WHITE = 0xFFFFFFFF;
-    private static final int COLOR_TEXT_GRAY = 0xFFAAAAAA;
-    private static final int COLOR_HOVER = 0x40FFFFFF;
-    private static final int COLOR_SUCCESS = 0xFF4CAF50;
+    // ─── Theme-driven instance colors ─────────────────────────────────────────
+    private final int COLOR_BG_DARK;
+    private final int COLOR_BG_MEDIUM;
+    private final int COLOR_BG_LIGHT;
+    private final int COLOR_BORDER_LIGHT;
+    private static final int COLOR_BORDER_DARK  = 0xFF0A0A0A;
+    private static final int COLOR_TEXT_WHITE   = 0xFFFFFFFF;
+    private static final int COLOR_TEXT_GRAY    = 0xFFAAAAAA;
+    private static final int COLOR_HOVER        = 0x40FFFFFF;
+    private static final int COLOR_SUCCESS      = 0xFF4CAF50;
     private static final int COLOR_ERROR = 0xFFFF5252;
     private static final int COLOR_WARNING = 0xFFFFA726;
     private static final int COLOR_INFO = 0xFF42A5F5;
 
-    private final SchematicUIFactory.SchematicHolder holder;
+    private final IUIHolder uiHolder;
+    private final ItemStack terminalItem; // the actual item stack
     private final Player player;
     private List<SchematicData> schematics = new ArrayList<>();
     private int selectedIndex = -1;
     private ModularUI gui;
     private TextFieldWidget nameInput;
+    private WidgetGroup mainGroup;  // root group — needed by ThemeEditorDialog
+    private ItemTheme theme;
     private WidgetGroup rightPanel;
     private DraggableScrollableWidgetGroup schematicsListWidget;
 
-    public SchematicInterfaceUI(SchematicUIFactory.SchematicHolder holder, Player player) {
-        this.holder = holder;
-        this.player = player;
+    // ── Constructor B: HeldItemUIFactory path ─────────────────────────────────
+    public SchematicInterfaceUI(HeldItemUIFactory.HeldItemHolder heldHolder) {
+        this.uiHolder      = heldHolder;
+        this.terminalItem  = heldHolder.held;
+        this.player        = heldHolder.player;
+        this.theme         = ItemTheme.load(this.terminalItem);
+        COLOR_BG_DARK      = theme.bgColor;
+        COLOR_BG_MEDIUM    = theme.panelColor;
+        COLOR_BG_LIGHT     = theme.isNativeStyle() ? 0xFF3A3A3A : theme.accent(0xAA);
+        COLOR_BORDER_LIGHT = theme.isNativeStyle() ? 0xFF555555 : theme.accent(0xFF);
+        loadSchematics();
+    }
+
+    // ── Constructor C: SchematicItemUIFactory path ────────────────────────────
+    public SchematicInterfaceUI(SchematicItemUIFactory.Holder holder, Player player) {
+        this.uiHolder      = holder;
+        this.terminalItem  = holder.getTerminalItem();
+        this.player        = player;
+        this.theme         = ItemTheme.load(this.terminalItem);
+        COLOR_BG_DARK      = theme.bgColor;
+        COLOR_BG_MEDIUM    = theme.panelColor;
+        COLOR_BG_LIGHT     = theme.isNativeStyle() ? 0xFF3A3A3A : theme.accent(0xAA);
+        COLOR_BORDER_LIGHT = theme.isNativeStyle() ? 0xFF555555 : theme.accent(0xFF);
         loadSchematics();
     }
 
     private void loadSchematics() {
         this.schematics = new ArrayList<>();
 
-        ItemStack currentItem = holder.getTerminalItem();
+        ItemStack currentItem = terminalItem;
         CompoundTag tag = currentItem.getTag();
         if (tag != null && tag.contains("SavedSchematics")) {
             ListTag list = tag.getList("SavedSchematics", 10);
@@ -85,7 +114,7 @@ public class SchematicInterfaceUI {
     private void reloadSchematicsFromItem() {
         this.schematics = new ArrayList<>();
 
-        ItemStack currentItem = holder.getTerminalItem();
+        ItemStack currentItem = terminalItem;
         CompoundTag tag = currentItem.getTag();
 
         if (tag != null && tag.contains("SavedSchematics")) {
@@ -111,8 +140,10 @@ public class SchematicInterfaceUI {
     }
 
     public ModularUI createUI() {
-        WidgetGroup mainGroup = new WidgetGroup(0, 0, GUI_WIDTH, GUI_HEIGHT);
-        mainGroup.setBackground(new ColorRectTexture(COLOR_BG_DARK));
+        this.mainGroup = new WidgetGroup(0, 0, GUI_WIDTH, GUI_HEIGHT);
+        WidgetGroup mainGroup = this.mainGroup;
+        mainGroup.setBackground(new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0x00000000));
+        if (!theme.isNativeStyle()) { mainGroup.addWidget(new WallpaperWidget(0, 0, GUI_WIDTH, GUI_HEIGHT, () -> this.theme)); }
 
         mainGroup.addWidget(createBorders());
         mainGroup.addWidget(createHeader());
@@ -140,9 +171,9 @@ public class SchematicInterfaceUI {
 
             if (GUI_WIDTH <= maxW && GUI_HEIGHT <= maxH) {
                 // Cabe sin scroll
-                ModularUI ui = new ModularUI(new Size(GUI_WIDTH, GUI_HEIGHT), holder, player);
+                ModularUI ui = new ModularUI(new Size(GUI_WIDTH, GUI_HEIGHT), uiHolder, player);
                 ui.widget(content);
-                ui.background(new ColorRectTexture(0x90000000));
+                ui.background(theme.modularUIBackground());
                 return ui;
             } else {
                 // Necesita scroll
@@ -161,15 +192,15 @@ public class SchematicInterfaceUI {
                 WidgetGroup root = new WidgetGroup(0, 0, viewportW, viewportH);
                 root.addWidget(viewport);
 
-                ModularUI ui = new ModularUI(new Size(viewportW, viewportH), holder, player);
+                ModularUI ui = new ModularUI(new Size(viewportW, viewportH), uiHolder, player);
                 ui.widget(root);
-                ui.background(new ColorRectTexture(0x90000000));
+                ui.background(theme.modularUIBackground());
                 return ui;
             }
         } catch (Throwable t) {
-            ModularUI ui = new ModularUI(new Size(GUI_WIDTH, GUI_HEIGHT), holder, player);
+            ModularUI ui = new ModularUI(new Size(GUI_WIDTH, GUI_HEIGHT), uiHolder, player);
             ui.widget(content);
-            ui.background(new ColorRectTexture(0x90000000));
+            ui.background(theme.modularUIBackground());
             return ui;
         }
     }
@@ -203,13 +234,22 @@ public class SchematicInterfaceUI {
         clipboardLabel.setTextColor(hasClipboard ? COLOR_SUCCESS : COLOR_TEXT_GRAY);
         header.addWidget(clipboardLabel);
 
+        // ⚙ Theme settings button
+        ButtonWidget gearBtn = new ButtonWidget(GUI_WIDTH - 22, 8, 14, 14,
+                new ColorRectTexture(0x00000000),
+                cd -> ThemeEditorDialog.open(mainGroup, ItemTheme.load(terminalItem)));
+        gearBtn.setButtonTexture(new TextTexture("§7⚙").setWidth(14).setType(TextTexture.TextType.NORMAL));
+        gearBtn.setHoverTexture(new ColorRectTexture(COLOR_HOVER));
+        gearBtn.setHoverTooltips("Theme Settings");
+        header.addWidget(gearBtn);
+
         return header;
     }
 
     private WidgetGroup createLeftPanel() {
         int panelWidth = 160;
         WidgetGroup leftPanel = new WidgetGroup(10, 35, 160, GUI_HEIGHT - 45);
-        leftPanel.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        leftPanel.setBackground(theme.panelTexture());
 
         LabelWidget nameLabel = new LabelWidget(8, 8, "§7Schematic Name:");
         nameLabel.setTextColor(COLOR_TEXT_GRAY);
@@ -218,7 +258,7 @@ public class SchematicInterfaceUI {
         this.nameInput = new TextFieldWidget(8, 22, panelWidth - 16, 14, null, s -> {});
         nameInput.setMaxStringLength(32);
         nameInput.setTextColor(COLOR_TEXT_WHITE);
-        nameInput.setBackground(new ColorRectTexture(COLOR_BG_DARK));
+        nameInput.setBackground(theme.backgroundTexture());
         nameInput.setBordered(true);
         leftPanel.addWidget(nameInput);
 
@@ -229,7 +269,7 @@ public class SchematicInterfaceUI {
         this.schematicsListWidget = new DraggableScrollableWidgetGroup(
                 8, 58, panelWidth - 16, GUI_HEIGHT - 150
         );
-        schematicsListWidget.setBackground(new ColorRectTexture(COLOR_BG_DARK));
+        schematicsListWidget.setBackground(theme.backgroundTexture());
 
         populateSchematicsList();
 
@@ -313,12 +353,12 @@ public class SchematicInterfaceUI {
         int panelX = 180;
         int panelWidth = GUI_WIDTH - panelX - 4;
         WidgetGroup rightPanel = new WidgetGroup(panelX, 38, panelWidth, GUI_HEIGHT - 82);
-        rightPanel.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        rightPanel.setBackground(theme.panelTexture());
 
         int previewSize = panelWidth - 16;
         int previewHeight = GUI_HEIGHT - 82 - 16;
         WidgetGroup previewArea = new WidgetGroup(8, 8, previewSize, previewHeight);
-        previewArea.setBackground(new ColorRectTexture(COLOR_BG_DARK));
+        previewArea.setBackground(theme.backgroundTexture());
 
         GTCEUTerminalMod.LOGGER.info("Creating right panel - selectedIndex: {}, schematics.size(): {}",
                 selectedIndex, schematics.size());
@@ -395,7 +435,7 @@ public class SchematicInterfaceUI {
 
     private WidgetGroup createButtonSection() {
         WidgetGroup buttonSection = new WidgetGroup(4, GUI_HEIGHT - 40, GUI_WIDTH - 8, 36);
-        buttonSection.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        buttonSection.setBackground(theme.panelTexture());
 
         int buttonWidth = 90;
         int buttonHeight = 24;
@@ -467,6 +507,43 @@ public class SchematicInterfaceUI {
         return buttonSection;
     }
 
+    /** ── Open Planner (Descoment this if you want to use the Planner mode. It is not implemented but it will) ────────
+     ButtonWidget plannerButton = new ButtonWidget(310, 6, 52, buttonHeight,
+     new GuiTextureGroup(
+     new ColorRectTexture(0xFF1A2A3A),
+     new ColorBorderTexture(1, COLOR_BORDER_LIGHT)
+     ),
+     cd -> {
+     // Use reflection so SchematicInterfaceUI can be loaded on the dedicated
+     // server without triggering classloading of PlannerScreen → Screen.
+     final java.util.List<SchematicData> snap = new java.util.ArrayList<>(schematics);
+     gui.entityPlayer.closeContainer();
+     net.minecraft.client.Minecraft.getInstance().tell(() -> {
+     try {
+     Class<?> cls = Class.forName(
+     "com.gtceuterminal.client.gui.planner.PlannerScreen");
+     net.minecraft.client.gui.screens.Screen screen =
+     (net.minecraft.client.gui.screens.Screen)
+     cls.getConstructor(java.util.List.class).newInstance(snap);
+     net.minecraft.client.Minecraft.getInstance().setScreen(screen);
+     } catch (Exception e) {
+     GTCEUTerminalMod.LOGGER.error("Failed to open PlannerScreen", e);
+     }
+     });
+     });
+     plannerButton.setButtonTexture(new TextTexture("§9⊞ Planner")
+     .setWidth(52)
+     .setType(TextTexture.TextType.NORMAL));
+     plannerButton.setHoverTexture(new GuiTextureGroup(
+     new ColorRectTexture(0xFF243040),
+     new ColorBorderTexture(2, COLOR_TEXT_WHITE)
+     ));
+     plannerButton.setHoverTooltips("Open 2D placement planner");
+     buttonSection.addWidget(plannerButton);
+
+     return buttonSection;
+     **/
+
     // Helper methods
     private String getMultiblockName(SchematicData schematic) {
         if (schematic == null || schematic.getBlocks().isEmpty()) {
@@ -535,7 +612,7 @@ public class SchematicInterfaceUI {
         int previewHeight = GUI_HEIGHT - 82 - 16;
 
         WidgetGroup previewArea = new WidgetGroup(8, 8, previewSize, previewHeight);
-        previewArea.setBackground(new ColorRectTexture(COLOR_BG_DARK));
+        previewArea.setBackground(theme.backgroundTexture());
 
         if (selectedIndex >= 0 && selectedIndex < schematics.size()) {
             SchematicData selected = schematics.get(selectedIndex);
@@ -597,7 +674,7 @@ public class SchematicInterfaceUI {
         );
 
         // Build a local copy of the clipboard data so we can add it to the client list immediately,
-        ItemStack currentItem = holder.getTerminalItem();
+        ItemStack currentItem = terminalItem;
         CompoundTag itemTag = currentItem.getTag();
         if (itemTag != null && itemTag.contains("Clipboard")) {
             try {
@@ -684,7 +761,7 @@ public class SchematicInterfaceUI {
 
 
     private boolean hasClipboard() {
-        ItemStack currentItem = holder.getTerminalItem();
+        ItemStack currentItem = terminalItem;
         CompoundTag tag = currentItem.getTag();
         if (tag == null || !tag.contains("Clipboard")) {
             return false;
@@ -692,5 +769,14 @@ public class SchematicInterfaceUI {
         CompoundTag clipboardTag = tag.getCompound("Clipboard");
         return clipboardTag.contains("Blocks") &&
                 !clipboardTag.getList("Blocks", 10).isEmpty();
+    }
+
+    // ── Static factory methods ────────────────────────────────────────────────
+    public static ModularUI create(HeldItemUIFactory.HeldItemHolder heldHolder) {
+        return new SchematicInterfaceUI(heldHolder).createUI();
+    }
+
+    public static ModularUI create(SchematicItemUIFactory.Holder holder, Player player) {
+        return new SchematicInterfaceUI(holder, player).createUI();
     }
 } // I hate this file

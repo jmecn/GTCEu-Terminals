@@ -1,10 +1,19 @@
 package com.gtceuterminal.client.gui.multiblock;
 
+import com.gtceuterminal.client.gui.widget.WallpaperWidget;
 import com.gtceuterminal.GTCEUTerminalMod;
-import com.gtceuterminal.client.gui.factory.MultiStructureUIFactory;
 import com.gtceuterminal.common.multiblock.MultiblockInfo;
 import com.gtceuterminal.common.multiblock.MultiblockScanner;
+import com.gtceuterminal.client.gui.factory.MultiStructureManagerUIFactory;
+import com.gtceuterminal.client.gui.theme.ThemeEditorDialog;
+import com.gtceuterminal.common.theme.ItemTheme;
+import com.gtceuterminal.client.highlight.MultiblockHighlighter;
+import com.gtceuterminal.common.energy.LinkedMachineData;
+import com.gtceuterminal.common.network.CPacketSetCustomMultiblockName;
+import com.gtceuterminal.common.network.TerminalNetwork;
 
+import com.lowdragmc.lowdraglib.gui.factory.HeldItemUIFactory;
+import com.lowdragmc.lowdraglib.gui.modular.IUIHolder;
 import com.lowdragmc.lowdraglib.gui.modular.ModularUI;
 import com.lowdragmc.lowdraglib.gui.texture.ColorBorderTexture;
 import com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture;
@@ -12,11 +21,6 @@ import com.lowdragmc.lowdraglib.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib.gui.texture.TextTexture;
 import com.lowdragmc.lowdraglib.gui.widget.*;
 import com.lowdragmc.lowdraglib.utils.Size;
-
-import com.gtceuterminal.client.highlight.MultiblockHighlighter;
-import com.gtceuterminal.common.energy.LinkedMachineData;
-import com.gtceuterminal.common.network.CPacketSetCustomMultiblockName;
-import com.gtceuterminal.common.network.TerminalNetwork;
 import com.lowdragmc.lowdraglib.gui.editor.ColorPattern;
 import com.lowdragmc.lowdraglib.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib.gui.widget.DialogWidget;
@@ -35,28 +39,66 @@ public class MultiStructureManagerUI {
     private static final int dialogH = 240;
     private static final int SCAN_RADIUS = 32;
 
-    private static final int COLOR_BG_DARK = 0xFF1A1A1A;
-    private static final int COLOR_BG_MEDIUM = 0xFF2B2B2B;
-    private static final int COLOR_BG_LIGHT = 0xFF3F3F3F;
-    private static final int COLOR_BORDER_LIGHT = 0xFF5A5A5A;
-    private static final int COLOR_BORDER_DARK = 0xFF0A0A0A;
-    private static final int COLOR_TEXT_WHITE = 0xFFFFFFFF;
-    private static final int COLOR_TEXT_GRAY = 0xFFAAAAAA;
-    private static final int COLOR_HOVER = 0x40FFFFFF;
+    // ─── Theme-driven instance colors ─────────────────────────────────────────
+    private final int COLOR_BG_DARK;
+    private final int COLOR_BG_MEDIUM;
+    private final int COLOR_BG_LIGHT;
+    private final int COLOR_BORDER_LIGHT;
+    private static final int COLOR_BORDER_DARK  = 0xFF0A0A0A;
+    private static final int COLOR_TEXT_WHITE   = 0xFFFFFFFF;
+    private static final int COLOR_TEXT_GRAY    = 0xFFAAAAAA;
+    private static final int COLOR_HOVER        = 0x40FFFFFF;
 
-    private final MultiStructureUIFactory.MultiStructureHolder holder;
+    private final Object legacyHolder; // unused legacy field - kept for compat
+    private final IUIHolder uiHolder;
     private final Player player;
     private List<MultiblockInfo> multiblocks = new ArrayList<>();
     private int selectedIndex = -1;
     private ModularUI gui;
     private WidgetGroup rootGroup;
+    private ItemTheme theme;
 
     // Keep a reference so we can disable hover/clicks when modal dialogs are open
     private DraggableScrollableWidgetGroup multiblockScroll;
 
-    public MultiStructureManagerUI(MultiStructureUIFactory.MultiStructureHolder holder, Player player) {
-        this.holder = holder;
-        this.player = player;
+    // ── Constructor A: legacy path — unused, kept temporarily
+    // This constructor is no longer called - MultiStructureManagerUIFactory.Holder is used instead.
+    // Kept to avoid removing too much at once; can be deleted in a future cleanup.
+    @Deprecated
+    public MultiStructureManagerUI(com.lowdragmc.lowdraglib.gui.modular.IUIHolder holder, Player player) {
+        this.legacyHolder = null;
+        this.uiHolder     = holder;
+        this.player       = player;
+        this.theme         = ItemTheme.loadFromPlayer(player);
+        GTCEUTerminalMod.LOGGER.info(
+                "MultiStructureManagerUI: isRemote={} accent={} bg={} panel={}",
+                holder.isRemote(),
+                String.format("#%06X", theme.accentColor & 0xFFFFFF),
+                String.format("#%06X", theme.bgColor     & 0xFFFFFF),
+                String.format("#%06X", theme.panelColor  & 0xFFFFFF));
+        COLOR_BG_DARK      = theme.bgColor;
+        COLOR_BG_MEDIUM    = theme.panelColor;
+        COLOR_BG_LIGHT     = theme.accent(0xAA);
+        COLOR_BORDER_LIGHT = theme.accent(0xFF);
+        scanMultiblocks();
+    }
+
+    // ── Constructor B: HeldItemUIFactory path ─────────────────────────────────
+    public MultiStructureManagerUI(HeldItemUIFactory.HeldItemHolder heldHolder) {
+        this.legacyHolder = null;
+        this.uiHolder     = heldHolder;
+        this.player       = heldHolder.player;
+        this.theme         = ItemTheme.loadFromPlayer(player);
+        GTCEUTerminalMod.LOGGER.info(
+                "MultiStructureManagerUI: isRemote={} accent={} bg={} panel={}",
+                heldHolder.isRemote(),
+                String.format("#%06X", theme.accentColor & 0xFFFFFF),
+                String.format("#%06X", theme.bgColor     & 0xFFFFFF),
+                String.format("#%06X", theme.panelColor  & 0xFFFFFF));
+        COLOR_BG_DARK      = theme.bgColor;
+        COLOR_BG_MEDIUM    = theme.panelColor;
+        COLOR_BG_LIGHT     = theme.accent(0xAA);
+        COLOR_BORDER_LIGHT = theme.accent(0xFF);
         scanMultiblocks();
     }
 
@@ -68,37 +110,146 @@ public class MultiStructureManagerUI {
     }
 
     public ModularUI createUI() {
-        WidgetGroup mainGroup = new WidgetGroup(0, 0, dialogW, dialogH);
-        this.rootGroup = mainGroup;
-        mainGroup.setBackground(new ColorRectTexture(COLOR_BG_DARK));
+        this.gui = new ModularUI(new Size(dialogW, dialogH), uiHolder, player);
 
-        mainGroup.addWidget(createMainPanel());
-        mainGroup.addWidget(createHeader());
-        mainGroup.addWidget(createMultiblockList());
-        mainGroup.addWidget(createRefreshButton());
+        if (theme.isNativeStyle()) {
+            gui.background(com.gregtechceu.gtceu.api.gui.GuiTextures.BACKGROUND);
 
-        this.gui = new ModularUI(new Size(dialogW, dialogH), holder, player);
-        gui.widget(mainGroup);
-        gui.background(new ColorRectTexture(0x90000000));
+            int padX = 7, padY = 4;
+            int displayW = dialogW - padX * 2;
+            int displayH = dialogH - padY * 2 - 4;
+
+            DraggableScrollableWidgetGroup display =
+                    new DraggableScrollableWidgetGroup(padX, padY, displayW, displayH);
+            display.setBackground(com.gregtechceu.gtceu.api.gui.GuiTextures.DISPLAY);
+            display.setYScrollBarWidth(6);
+            display.setYBarStyle(
+                    new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0xFF222222),
+                    new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0xFF555555));
+
+            String title = "Nearby Multiblocks (" + multiblocks.size() + ")";
+            LabelWidget titleLabel = new LabelWidget(4, 5, title);
+            display.addWidget(titleLabel);
+
+            // ⚙ gear button — top right inside the display panel
+            ButtonWidget gearBtn = new ButtonWidget(displayW - 18, 2, 14, 14,
+                    new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0x00000000),
+                    cd -> ThemeEditorDialog.open(gui.mainGroup, ItemTheme.loadFromPlayer(player)));
+            gearBtn.setButtonTexture(new TextTexture("§7⚙").setWidth(14).setType(TextTexture.TextType.NORMAL));
+            gearBtn.setHoverTexture(new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0x33FFFFFF));
+            gearBtn.setHoverTooltips("Theme Settings");
+            display.addWidget(gearBtn);
+
+            // ↻ refresh button — left of gear button
+            ButtonWidget refreshBtn = new ButtonWidget(displayW - 36, 2, 14, 14,
+                    new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0x00000000),
+                    cd -> { scanMultiblocks(); refreshUI(); });
+            refreshBtn.setButtonTexture(new TextTexture("§7↻").setWidth(14).setType(TextTexture.TextType.NORMAL));
+            refreshBtn.setHoverTexture(new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0x33FFFFFF));
+            refreshBtn.setHoverTooltips("Refresh");
+            display.addWidget(refreshBtn);
+
+            int yPos = 17;
+            for (int i = 0; i < multiblocks.size(); i++) {
+                display.addWidget(createMultiblockEntryNative(multiblocks.get(i), i, yPos, displayW));
+                yPos += 22;
+            }
+
+            // Refresh button below the display panel
+            gui.widget(display);
+
+        } else {
+            // ── Dark / custom color layout ────────────────────────────────────
+            WidgetGroup mainGroup = new WidgetGroup(0, 0, dialogW, dialogH);
+            this.rootGroup = mainGroup;
+            mainGroup.setBackground(new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0x00000000));
+            mainGroup.addWidget(new WallpaperWidget(0, 0, dialogW, dialogH, () -> this.theme));
+            mainGroup.addWidget(createMainPanelDark());
+            mainGroup.addWidget(createHeaderDark());
+            mainGroup.addWidget(createMultiblockListDark());
+            mainGroup.addWidget(createRefreshButton());
+            gui.widget(mainGroup);
+            gui.background(new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0x90000000));
+        }
+
         return gui;
     }
 
-    private WidgetGroup createMainPanel() {
+    // ── Native style helpers ───────────────────────────────────────────────────
+    private WidgetGroup createMultiblockEntryNative(MultiblockInfo mb, int index, int yPos, int displayW) {
+        int entryW = displayW - 8;
+        WidgetGroup entry = new WidgetGroup(0, yPos, entryW, 20);
+
+        // Click to open detail
+        ButtonWidget clickBtn = new ButtonWidget(0, 0, entryW, 20,
+                new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0x00000000),
+                cd -> { selectedIndex = index; openComponentDetail(mb); });
+        clickBtn.setHoverTexture(new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0x33FFFFFF));
+        entry.addWidget(clickBtn);
+
+        // Arrow + name
+        entry.addWidget(new LabelWidget(4, 5, "▶"));
+        entry.addWidget(new LabelWidget(16, 5, mb.getName()));
+
+        // 🔆 Highlight button
+        ButtonWidget highlightBtn = new ButtonWidget(entryW - 60, 2, 16, 16,
+                new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0x00000000),
+                cd -> toggleHighlight(mb));
+        highlightBtn.setButtonTexture(new TextTexture("§e◉").setWidth(16).setType(TextTexture.TextType.NORMAL));
+        highlightBtn.setHoverTexture(new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0x33FFFF00));
+        highlightBtn.setHoverTooltips("Highlight in world");
+        entry.addWidget(highlightBtn);
+
+        // ✎ Rename button
+        ButtonWidget renameBtn = new ButtonWidget(entryW - 42, 2, 16, 16,
+                new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0x00000000),
+                cd -> openRenameDialog(mb));
+        renameBtn.setButtonTexture(new TextTexture("§7✎").setWidth(16).setType(TextTexture.TextType.NORMAL));
+        renameBtn.setHoverTexture(new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0x33FFFFFF));
+        renameBtn.setHoverTooltips("Rename");
+        entry.addWidget(renameBtn);
+
+        // Status dot
+        entry.addWidget(new ImageWidget(entryW - 24, 6, 8, 8,
+                new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(mb.getStatus().getColor())));
+
+        // Distance label
+        LabelWidget distLabel = new LabelWidget(entryW - 16, 5, mb.getDistanceString());
+        distLabel.setTextColor(0xFFAAAAAA);
+        entry.addWidget(distLabel);
+
+        return entry;
+    }
+
+    private void buildEntryRightSide(WidgetGroup entry, MultiblockInfo mb, int entryW) {
+        entry.addWidget(new ImageWidget(entryW - 24, 6, 8, 8,
+                new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(mb.getStatus().getColor())));
+        LabelWidget dist = new LabelWidget(entryW - 16, 5, mb.getDistanceString());
+        dist.setTextColor(0xFFAAAAAA);
+        entry.addWidget(dist);
+    }
+
+    private ButtonWidget buildRefreshBtn(int x, int y, boolean nativeStyle) {
+        ButtonWidget btn = new ButtonWidget(x, y, 28, 18,
+                nativeStyle
+                        ? com.gregtechceu.gtceu.api.gui.GuiTextures.BUTTON
+                        : new GuiTextureGroup(new ColorRectTexture(COLOR_BG_MEDIUM),
+                        new ColorBorderTexture(1, COLOR_BORDER_LIGHT)),
+                cd -> { scanMultiblocks(); refreshUI(); });
+        btn.setButtonTexture(new TextTexture("↻").setWidth(28).setType(TextTexture.TextType.NORMAL));
+        return btn;
+    }
+
+    private WidgetGroup createMainPanelDark() {
         WidgetGroup panel = new WidgetGroup(0, 0, dialogW, dialogH);
-
-        panel.addWidget(new ImageWidget(0, 0, dialogW, 2,
-                new ColorRectTexture(COLOR_BORDER_LIGHT)));
-        panel.addWidget(new ImageWidget(0, 0, 2, dialogH,
-                new ColorRectTexture(COLOR_BORDER_LIGHT)));
-        panel.addWidget(new ImageWidget(dialogW - 2, 0, 2, dialogH,
-                new ColorRectTexture(COLOR_BORDER_DARK)));
-        panel.addWidget(new ImageWidget(0, dialogH - 2, dialogW, 2,
-                new ColorRectTexture(COLOR_BORDER_DARK)));
-
+        panel.addWidget(new ImageWidget(0, 0, dialogW, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+        panel.addWidget(new ImageWidget(0, 0, 2, dialogH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+        panel.addWidget(new ImageWidget(dialogW - 2, 0, 2, dialogH, new ColorRectTexture(COLOR_BORDER_DARK)));
+        panel.addWidget(new ImageWidget(0, dialogH - 2, dialogW, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
         return panel;
     }
 
-    private WidgetGroup createHeader() {
+    private WidgetGroup createHeaderDark() {
         WidgetGroup header = new WidgetGroup(2, 2, dialogW - 4, 28);
         header.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
 
@@ -107,35 +258,32 @@ public class MultiStructureManagerUI {
         titleLabel.setTextColor(COLOR_TEXT_WHITE);
         header.addWidget(titleLabel);
 
+        ButtonWidget gearBtn = new ButtonWidget(dialogW - 24, 6, 14, 14,
+                new ColorRectTexture(0x00000000),
+                cd -> ThemeEditorDialog.open(rootGroup, ItemTheme.loadFromPlayer(player)));
+        gearBtn.setButtonTexture(new TextTexture("§7⚙").setWidth(14).setType(TextTexture.TextType.NORMAL));
+        gearBtn.setHoverTexture(new ColorRectTexture(COLOR_HOVER));
+        gearBtn.setHoverTooltips("Theme Settings");
+        header.addWidget(gearBtn);
         return header;
     }
 
-    private WidgetGroup createMultiblockList() {
+    private WidgetGroup createMultiblockListDark() {
         WidgetGroup listGroup = new WidgetGroup(10, 35, dialogW - 20, 180);
-
         listGroup.setBackground(new GuiTextureGroup(
                 new ColorRectTexture(COLOR_BG_DARK),
-                new ColorBorderTexture(1, COLOR_BORDER_DARK)
-        ));
+                new ColorBorderTexture(1, COLOR_BORDER_DARK)));
 
-        DraggableScrollableWidgetGroup scrollWidget = new DraggableScrollableWidgetGroup(
-                2, 2, dialogW - 30, 176
-        );
+        DraggableScrollableWidgetGroup scrollWidget = new DraggableScrollableWidgetGroup(2, 2, dialogW - 30, 176);
         this.multiblockScroll = scrollWidget;
         scrollWidget.setYScrollBarWidth(8);
-        scrollWidget.setYBarStyle(
-                new ColorRectTexture(COLOR_BORDER_DARK),
-                new ColorRectTexture(COLOR_BORDER_LIGHT)
-        );
+        scrollWidget.setYBarStyle(new ColorRectTexture(COLOR_BORDER_DARK), new ColorRectTexture(COLOR_BORDER_LIGHT));
 
         int yPos = 0;
         for (int i = 0; i < multiblocks.size(); i++) {
-            final int index = i;
-            MultiblockInfo mb = multiblocks.get(i);
-            scrollWidget.addWidget(createMultiblockEntry(mb, index, yPos));
+            scrollWidget.addWidget(createMultiblockEntry(multiblocks.get(i), i, yPos));
             yPos += 22;
         }
-
         listGroup.addWidget(scrollWidget);
         return listGroup;
     }
@@ -193,29 +341,9 @@ public class MultiStructureManagerUI {
 
     // Refresh Button
     private ButtonWidget createRefreshButton() {
-        ButtonWidget refreshBtn = new ButtonWidget(
-                dialogW - 38, 5, 28, 22,
-                new GuiTextureGroup(
-                        new ColorRectTexture(COLOR_BG_MEDIUM),
-                        new ColorBorderTexture(1, COLOR_BORDER_LIGHT)
-                ),
-                cd -> {
-                    scanMultiblocks();
-                    refreshUI();
-                }
-        );
-
-        refreshBtn.setButtonTexture(new TextTexture("↻")
-                .setWidth(28)
-                .setType(TextTexture.TextType.NORMAL));
-
-        refreshBtn.setHoverTexture(new GuiTextureGroup(
-                new ColorRectTexture(COLOR_BG_MEDIUM),
-                new ColorBorderTexture(1, COLOR_TEXT_WHITE)
-        ));
-
-        return refreshBtn;
+        return buildRefreshBtn(dialogW - 38, 5, false);
     }
+
 
     // Highlight the multiblock in the world.
     private void toggleHighlight(MultiblockInfo mb) {
@@ -350,8 +478,28 @@ public class MultiStructureManagerUI {
         );
     }
 
-    public static ModularUI create(MultiStructureUIFactory.MultiStructureHolder holder, Player player) {
-        MultiStructureManagerUI ui = new MultiStructureManagerUI(holder, player);
-        return ui.createUI();
+
+    // ── Entry point via HeldItemUIFactory (kept for compat) ──────────────────
+    public static ModularUI create(HeldItemUIFactory.HeldItemHolder heldHolder) {
+        return new MultiStructureManagerUI(heldHolder).createUI();
+    }
+
+    // ── Constructor C: MultiStructureManagerUIFactory path ───────────────────
+    public MultiStructureManagerUI(MultiStructureManagerUIFactory.Holder holder, Player player) {
+        this.legacyHolder = null;
+        this.uiHolder     = holder;
+        this.player       = player;
+        this.theme         = ItemTheme.loadFromPlayer(player);
+        GTCEUTerminalMod.LOGGER.info(
+                "MultiStructureManagerUI: isRemote={}", holder.isRemote());
+        COLOR_BG_DARK      = theme.bgColor;
+        COLOR_BG_MEDIUM    = theme.panelColor;
+        COLOR_BG_LIGHT     = theme.accent(0xAA);
+        COLOR_BORDER_LIGHT = theme.accent(0xFF);
+        scanMultiblocks();
+    }
+
+    public static ModularUI create(MultiStructureManagerUIFactory.Holder holder, Player player) {
+        return new MultiStructureManagerUI(holder, player).createUI();
     }
 }

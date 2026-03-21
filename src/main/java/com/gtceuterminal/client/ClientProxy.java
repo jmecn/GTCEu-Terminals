@@ -17,39 +17,6 @@ import java.util.List;
 @OnlyIn(Dist.CLIENT)
 public class ClientProxy {
 
-
-    // Request server to open Schematic Interface UI
-    public static void openSchematicGUI(ItemStack stack, Player player, List<SchematicData> schematics) {
-        if (player == null) return;
-        GTCEUTerminalMod.LOGGER.info("Client: Sending CPacketOpenSchematicUI to server...");
-        TerminalNetwork.CHANNEL.sendToServer(new CPacketOpenSchematicUI());
-    }
-
-
-    // Request server to open Multi-Structure Manager UI (scan multiblocks)
-    public static void openMultiStructureGUI(ItemStack stack, Player player) {
-        if (player == null) return;
-        GTCEUTerminalMod.LOGGER.info("Client: Sending CPacketOpenMultiStructureUI to server...");
-        TerminalNetwork.CHANNEL.sendToServer(new CPacketOpenMultiStructureUI());
-    }
-
-
-    // Request server to open Manager Settings UI
-    public static void openManagerSettingsGUI(ItemStack stack, Player player) {
-        if (player == null) return;
-        GTCEUTerminalMod.LOGGER.info("Client: Sending CPacketOpenManagerSettings to server...");
-        TerminalNetwork.CHANNEL.sendToServer(new CPacketOpenManagerSettings());
-    }
-
-
-    // Request server to open Dismantler UI
-    public static void openDismantlerGUI(ItemStack stack, Player player, BlockPos controllerPos) {
-        if (player == null) return;
-        GTCEUTerminalMod.LOGGER.info("Client: Sending CPacketOpenDismantlerUI to server at {}...", controllerPos);
-        TerminalNetwork.CHANNEL.sendToServer(new CPacketOpenDismantlerUI(controllerPos));
-    }
-
-
     public static void openEnergyAnalyzerGUI(ServerPlayer player, int machineIndex) {
         if (player == null) return;
         GTCEUTerminalMod.LOGGER.debug("ClientProxy: sending CPacketOpenEnergyAnalyzerUI index={}", machineIndex);
@@ -73,4 +40,4 @@ public class ClientProxy {
      GTCEUTerminalMod.LOGGER.error("ClientProxy: Error sending packet", e);
      }
      } **/
-}
+}// Useless

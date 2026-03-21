@@ -9,101 +9,111 @@ import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
-// Central class for managing Terminal Network packets and channel.
 public class TerminalNetwork {
 
-    private static final String PROTOCOL_VERSION = "1";
+    private static final String PROTOCOL = "4";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(GTCEUTerminalMod.MOD_ID, "network"),
-            () -> PROTOCOL_VERSION,
-            PROTOCOL_VERSION::equals,
-            PROTOCOL_VERSION::equals
+            () -> PROTOCOL,
+            PROTOCOL::equals,
+            PROTOCOL::equals
     );
 
-    private static int packetId = 0;
+    private static int id = 0;
 
     public static void registerPackets() {
-        GTCEUTerminalMod.LOGGER.info("Registering Terminal Network packets...");
-
-        // ==========================================
-        // CLIENT → SERVER PACKETS
-        // ==========================================
-
-        CHANNEL.messageBuilder(CPacketBlockReplacement.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+        // ── C2S ──────────────────────────────────────────────────────────────
+        CHANNEL.messageBuilder(CPacketBlockReplacement.class,        id++, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(CPacketBlockReplacement::encode)
                 .decoder(CPacketBlockReplacement::new)
                 .consumerMainThread(CPacketBlockReplacement::handle)
                 .add();
 
-        CHANNEL.messageBuilder(CPacketSchematicAction.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+        CHANNEL.messageBuilder(CPacketSchematicAction.class,         id++, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(CPacketSchematicAction::encode)
                 .decoder(CPacketSchematicAction::new)
                 .consumerMainThread(CPacketSchematicAction::handle)
                 .add();
 
-        CHANNEL.messageBuilder(CPacketComponentUpgrade.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+        CHANNEL.messageBuilder(CPacketComponentUpgrade.class,        id++, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(CPacketComponentUpgrade::encode)
                 .decoder(CPacketComponentUpgrade::decode)
                 .consumerMainThread(CPacketComponentUpgrade::handle)
                 .add();
 
-        CHANNEL.messageBuilder(CPacketSetCustomMultiblockName.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+        CHANNEL.messageBuilder(CPacketSetCustomMultiblockName.class, id++, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(CPacketSetCustomMultiblockName::encode)
                 .decoder(CPacketSetCustomMultiblockName::new)
                 .consumerMainThread(CPacketSetCustomMultiblockName::handle)
                 .add();
 
-        CHANNEL.messageBuilder(CPacketDismantle.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+        CHANNEL.messageBuilder(CPacketDismantle.class,               id++, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(CPacketDismantle::encode)
                 .decoder(CPacketDismantle::decode)
                 .consumerMainThread(CPacketDismantle::handle)
                 .add();
 
-        CHANNEL.messageBuilder(CPacketOpenDismantlerUI.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
-                .encoder(CPacketOpenDismantlerUI::encode)
-                .decoder(CPacketOpenDismantlerUI::decode)
-                .consumerMainThread(CPacketOpenDismantlerUI::handle)
-                .add();
-
-        CHANNEL.messageBuilder(CPacketOpenMultiStructureUI.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
-                .encoder(CPacketOpenMultiStructureUI::encode)
-                .decoder(CPacketOpenMultiStructureUI::decode)
-                .consumerMainThread(CPacketOpenMultiStructureUI::handle)
-                .add();
-
-        CHANNEL.messageBuilder(CPacketOpenSchematicUI.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
-                .encoder(CPacketOpenSchematicUI::encode)
-                .decoder(CPacketOpenSchematicUI::decode)
-                .consumerMainThread(CPacketOpenSchematicUI::handle)
-                .add();
-
-        CHANNEL.messageBuilder(CPacketOpenManagerSettings.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
-                .encoder(CPacketOpenManagerSettings::encode)
-                .decoder(CPacketOpenManagerSettings::decode)
-                .consumerMainThread(CPacketOpenManagerSettings::handle)
-                .add();
-
-        CHANNEL.messageBuilder(CPacketOpenEnergyAnalyzerUI.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+        CHANNEL.messageBuilder(CPacketOpenEnergyAnalyzerUI.class,    id++, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(CPacketOpenEnergyAnalyzerUI::encode)
                 .decoder(CPacketOpenEnergyAnalyzerUI::decode)
                 .consumerMainThread(CPacketOpenEnergyAnalyzerUI::handle)
                 .add();
 
-        CHANNEL.messageBuilder(CPacketEnergyAnalyzerAction.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+        CHANNEL.messageBuilder(CPacketEnergyAnalyzerAction.class,    id++, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(CPacketEnergyAnalyzerAction::encode)
                 .decoder(CPacketEnergyAnalyzerAction::decode)
                 .consumerMainThread(CPacketEnergyAnalyzerAction::handle)
                 .add();
 
-        GTCEUTerminalMod.LOGGER.info("Registered {} Terminal Network packets", packetId);
-        GTCEUTerminalMod.LOGGER.info("Network packets registered successfully!");
+        CHANNEL.messageBuilder(CPacketSaveTheme.class,               id++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(CPacketSaveTheme::encode)
+                .decoder(CPacketSaveTheme::new)
+                .consumerMainThread(CPacketSaveTheme::handle)
+                .add();
+
+        CHANNEL.messageBuilder(CPacketPlacePlannerGhosts.class,      id++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(CPacketPlacePlannerGhosts::encode)
+                .decoder(CPacketPlacePlannerGhosts::new)
+                .consumerMainThread(CPacketPlacePlannerGhosts::handle)
+                .add();
+
+        CHANNEL.messageBuilder(CPacketConfirmAutobuild.class,         id++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(CPacketConfirmAutobuild::encode)
+                .decoder(CPacketConfirmAutobuild::new)
+                .consumerMainThread(CPacketConfirmAutobuild::handle)
+                .add();
+
+        CHANNEL.messageBuilder(CPacketRequestUpgradeAnalysis.class,   id++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(CPacketRequestUpgradeAnalysis::encode)
+                .decoder(CPacketRequestUpgradeAnalysis::new)
+                .consumerMainThread(CPacketRequestUpgradeAnalysis::handle)
+                .add();
+
+        // ── S2C ──────────────────────────────────────────────────────────────
+        CHANNEL.messageBuilder(SPacketDefaultTheme.class,            id++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(SPacketDefaultTheme::encode)
+                .decoder(SPacketDefaultTheme::new)
+                .consumerMainThread(SPacketDefaultTheme::handle)
+                .add();
+
+        CHANNEL.messageBuilder(SPacketAnalysisResult.class,          id++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(SPacketAnalysisResult::encode)
+                .decoder(SPacketAnalysisResult::new)
+                .consumerMainThread(SPacketAnalysisResult::handle)
+                .add();
+
+        GTCEUTerminalMod.LOGGER.info("TerminalNetwork: registered {} packets", id);
     }
 
-    // Send packet from server to specific player
+    public static void sendToServer(Object packet) {
+        CHANNEL.sendToServer(packet);
+    }
+
     public static void sendToPlayer(Object packet, ServerPlayer player) {
-        CHANNEL.send(
-                PacketDistributor.PLAYER.with(() -> player),
-                packet
-        );
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
+    }
+
+    public static void sendToAll(Object packet) {
+        CHANNEL.send(PacketDistributor.ALL.noArg(), packet);
     }
 }

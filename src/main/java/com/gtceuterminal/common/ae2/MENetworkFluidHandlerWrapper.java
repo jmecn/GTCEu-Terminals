@@ -44,6 +44,42 @@ public class MENetworkFluidHandlerWrapper implements IFluidHandler {
         return new MENetworkFluidHandlerWrapper(storage.getInventory(), actionSource);
     }
 
+    /**
+     * Searches the player's inventory for a linked wireless terminal and returns
+     * a fluid handler wrapper for the connected ME network, or null if not found.
+     * This factory method is intentionally in this class (which already imports appeng.*)
+     * so callers outside the ae2 package don't need any appeng imports.
+     */
+    @org.jetbrains.annotations.Nullable
+    public static MENetworkFluidHandlerWrapper getFromPlayer(net.minecraft.world.entity.player.Player player) {
+        if (!MENetworkScanner.isAE2Available()) return null;
+
+        try {
+            java.util.List<net.minecraft.world.item.ItemStack> toCheck = new java.util.ArrayList<>();
+            toCheck.add(player.getMainHandItem());
+            toCheck.add(player.getOffhandItem());
+            for (net.minecraft.world.item.ItemStack s : player.getInventory().items) toCheck.add(s);
+
+            for (net.minecraft.world.item.ItemStack stack : toCheck) {
+                if (stack.isEmpty()) continue;
+                if (!WirelessTerminalHandler.isLinked(stack)) continue;
+
+                IGrid grid = WirelessTerminalHandler.getLinkedGrid(stack, player.level(), player);
+                if (grid == null) continue;
+
+                IActionSource actionSource = new appeng.me.helpers.PlayerSource(player, null);
+                MENetworkFluidHandlerWrapper wrapper = fromGrid(grid, actionSource);
+                if (wrapper != null) {
+                    GTCEUTerminalMod.LOGGER.debug("Connected to ME Network fluid storage via terminal");
+                    return wrapper;
+                }
+            }
+        } catch (Exception e) {
+            GTCEUTerminalMod.LOGGER.error("MENetworkFluidHandlerWrapper.getFromPlayer failed", e);
+        }
+        return null;
+    }
+
     private void updateCache() {
         long now = System.currentTimeMillis();
         if (now - lastCacheUpdate < CACHE_DURATION) {

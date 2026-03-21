@@ -1,5 +1,6 @@
 package com.gtceuterminal.client.gui.energy;
 
+import com.gtceuterminal.client.gui.widget.WallpaperWidget;
 import com.gtceuterminal.client.gui.factory.EnergyAnalyzerUIFactory;
 import com.gtceuterminal.common.energy.EnergySnapshot;
 import com.gtceuterminal.common.energy.LinkedMachineData;
@@ -7,6 +8,8 @@ import com.gtceuterminal.common.energy.RecipeHistoryEntry;
 import com.gtceuterminal.client.gui.widget.EnergyGraphWidget;
 import com.gtceuterminal.common.network.CPacketEnergyAnalyzerAction;
 import com.gtceuterminal.common.network.TerminalNetwork;
+import com.gtceuterminal.client.gui.theme.ThemeEditorDialog;
+import com.gtceuterminal.common.theme.ItemTheme;
 
 import com.lowdragmc.lowdraglib.gui.modular.ModularUI;
 import com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture;
@@ -36,10 +39,11 @@ public class EnergyAnalyzerUI {
     private static final int PAD       = 6;
     private static final int ITEM_H    = 36;
 
-    private static final int C_BG     = 0xFF1A1A1A;
-    private static final int C_PANEL  = 0xFF252525;
-    private static final int C_SEL    = 0xFF333333;
-    private static final int C_BORDER = 0xFF444444;
+    // ─── Theme-driven instance colors ────────────────────────────────────────────
+    private final int C_BG;
+    private final int C_PANEL;
+    private final int C_SEL;
+    private final int C_BORDER;
     private static final int C_WHITE  = 0xFFFFFFFF;
     private static final int C_GRAY   = 0xFFAAAAAA;
     private static final int C_GOLD   = 0xFFFFAA00;
@@ -48,6 +52,7 @@ public class EnergyAnalyzerUI {
     private static final int C_BLUE   = 0xFF5599FF;
     private static final int C_ORANGE = 0xFFFF8800;
 
+    private final ItemTheme theme;
     private final EnergyAnalyzerUIFactory.EnergyAnalyzerHolder holder;
     private final Player player;
     private int selectedIndex;
@@ -66,6 +71,11 @@ public class EnergyAnalyzerUI {
         this.holder        = holder;
         this.player        = player;
         this.selectedIndex = holder.initialIndex;
+        this.theme         = holder.theme;
+        this.C_BG          = theme.bgColor;
+        this.C_PANEL       = theme.panelColor;
+        this.C_SEL         = theme.accent(0x55);
+        this.C_BORDER      = theme.accent(0x80);
     }
 
     public static ModularUI create(EnergyAnalyzerUIFactory.EnergyAnalyzerHolder holder, Player player) {
@@ -74,11 +84,14 @@ public class EnergyAnalyzerUI {
 
     private ModularUI buildUI() {
         rootGroup = new WidgetGroup(0, 0, W, H);
-        rootGroup.setBackground(new ColorRectTexture(C_BG));
+        rootGroup.setBackground(new com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture(0x00000000));
+        if (!theme.isNativeStyle()) {
+            rootGroup.addWidget(new WallpaperWidget(0, 0, W, H, () -> this.theme));
+        }
         rootGroup.addWidget(buildHeader());
 
         WidgetGroup div = new WidgetGroup(SIDEBAR_W + 2, HEADER_H, 2, H - HEADER_H);
-        div.setBackground(new ColorRectTexture(C_BORDER));
+        div.setBackground(new ColorRectTexture(theme.isNativeStyle() ? 0x40000000 : C_BORDER));
         rootGroup.addWidget(div);
 
         rootGroup.addWidget(buildSidebar());
@@ -91,10 +104,16 @@ public class EnergyAnalyzerUI {
         return wrapUI(rootGroup);
     }
 
+    private int semi(int color) {
+        return (color & 0x00FFFFFF) | 0xCC000000;
+    }
+
     // ─── Header ───────────────────────────────────────────────────────────────
     private WidgetGroup buildHeader() {
         WidgetGroup g = new WidgetGroup(0, 0, W, HEADER_H);
-        g.setBackground(new ColorRectTexture(C_PANEL));
+        g.setBackground(theme.isNativeStyle()
+                ? com.gregtechceu.gtceu.api.gui.GuiTextures.TITLE_BAR_BACKGROUND
+                : new ColorRectTexture(semi(C_PANEL)));
         LabelWidget title = new LabelWidget(PAD, 8, "Energy Analyzer");
         title.setTextColor(C_GOLD);
         g.addWidget(title);
@@ -103,13 +122,23 @@ public class EnergyAnalyzerUI {
                 count + " machine" + (count == 1 ? "" : "s") + " linked");
         sub.setTextColor(C_GRAY);
         g.addWidget(sub);
+
+        // ⚙ Theme settings button
+        ButtonWidget gearBtn = new ButtonWidget(W - 22, (HEADER_H - 14) / 2, 14, 14,
+                new ColorRectTexture(0x00000000),
+                cd -> ThemeEditorDialog.open(rootGroup, theme));
+        gearBtn.setButtonTexture(new TextTexture("§7⚙").setWidth(14).setType(TextTexture.TextType.NORMAL));
+        gearBtn.setHoverTexture(new ColorRectTexture(0x33FFFFFF));
+        gearBtn.setHoverTooltips("Theme Settings");
+        g.addWidget(gearBtn);
+
         return g;
     }
 
     // ─── Sidebar ──────────────────────────────────────────────────────────────
     private WidgetGroup buildSidebar() {
         WidgetGroup g = new WidgetGroup(0, HEADER_H, SIDEBAR_W + 2, H - HEADER_H);
-        g.setBackground(new ColorRectTexture(C_PANEL));
+        g.setBackground(new ColorRectTexture(semi(C_PANEL)));
 
         List<LinkedMachineData> machines = holder.machines;
         if (machines.isEmpty()) {
@@ -818,7 +847,7 @@ public class EnergyAnalyzerUI {
         } catch (Exception ignored) {}
         ModularUI ui = new ModularUI(new Size(w, h), holder, player);
         ui.widget(content);
-        ui.background(new ColorRectTexture(0x90000000));
+        ui.background(theme.modularUIBackground());
         return ui;
     }
 }

@@ -18,7 +18,7 @@ import java.util.List;
  * it works now!
  */
 public class MENetworkScanner {
-    
+
     private static boolean ae2Available = false;
     private static boolean ae2Checked = false;
 
@@ -39,32 +39,32 @@ public class MENetworkScanner {
 
     public static List<BlockPos> findNearbyMENodes(Player player, Level level, int radius) {
         List<BlockPos> nodes = new ArrayList<>();
-        
+
         if (!isAE2Available()) {
             return nodes;
         }
-        
+
         BlockPos playerPos = player.blockPosition();
-        
+
         try {
 
             // Scan area for ME network blocks
             for (BlockPos pos : BlockPos.betweenClosed(
-                playerPos.offset(-radius, -radius, -radius),
-                playerPos.offset(radius, radius, radius)
+                    playerPos.offset(-radius, -radius, -radius),
+                    playerPos.offset(radius, radius, radius)
             )) {
                 BlockEntity be = level.getBlockEntity(pos);
                 if (be != null && isMENetworkBlock(be)) {
                     nodes.add(pos.immutable());
                 }
             }
-            
+
             GTCEUTerminalMod.LOGGER.debug("Found {} ME network nodes near player", nodes.size());
-            
+
         } catch (Exception e) {
             GTCEUTerminalMod.LOGGER.error("Error scanning for ME networks", e);
         }
-        
+
         return nodes;
     }
 
@@ -81,66 +81,66 @@ public class MENetworkScanner {
         if (!isAE2Available()) {
             return 0;
         }
-        
+
         try {
             BlockEntity be = level.getBlockEntity(nodePos);
             if (be == null) return 0;
-            
+
             Class<?> gridHostClass = Class.forName("appeng.api.networking.IGridHost");
             if (!gridHostClass.isInstance(be)) {
                 return 0;
             }
-            
+
             Object gridHost = gridHostClass.cast(be);
             Object gridNode = gridHostClass.getMethod("getGridNode").invoke(gridHost);
-            
+
             if (gridNode == null) return 0;
-            
+
             Class<?> gridNodeClass = Class.forName("appeng.api.networking.IGridNode");
             Object grid = gridNodeClass.getMethod("getGrid").invoke(gridNode);
-            
+
             if (grid == null) return 0;
-            
+
             Class<?> gridClass = Class.forName("appeng.api.networking.IGrid");
             Class<?> storageGridClass = Class.forName("appeng.api.networking.storage.IStorageGrid");
             Object storageGrid = gridClass.getMethod("getService", Class.class)
-                .invoke(grid, storageGridClass);
-            
+                    .invoke(grid, storageGridClass);
+
             if (storageGrid == null) return 0;
-            
+
             Object inventory = storageGridClass.getMethod("getInventory").invoke(storageGrid);
-            
+
             if (inventory == null) return 0;
-            
+
             Class<?> aeItemStackClass = Class.forName("appeng.api.storage.data.IAEItemStack");
             Class<?> aeItemStackFactoryClass = Class.forName("appeng.util.item.AEItemStack");
-            
+
             ItemStack minecraftStack = new ItemStack(item);
             Object aeStack = aeItemStackFactoryClass.getMethod("fromItemStack", ItemStack.class)
-                .invoke(null, minecraftStack);
-            
+                    .invoke(null, minecraftStack);
+
             if (aeStack == null) return 0;
-            
+
             Class<?> actionableClass = Class.forName("appeng.api.config.Actionable");
             Object simulateAction = actionableClass.getField("SIMULATE").get(null);
-            
+
             Class<?> baseActionSourceClass = Class.forName("appeng.api.networking.security.IActionSource");
             Class<?> machineSourceClass = Class.forName("appeng.me.helpers.MachineSource");
             Object actionSource = machineSourceClass.getConstructor(Object.class).newInstance(be);
-            
+
             Class<?> inventoryClass = Class.forName("appeng.api.storage.IMEInventory");
-            
+
             Object result = inventoryClass.getMethod("extractItems", aeItemStackClass, actionableClass, baseActionSourceClass)
-                .invoke(inventory, aeStack, simulateAction, actionSource);
-            
+                    .invoke(inventory, aeStack, simulateAction, actionSource);
+
             if (result == null) return 0;
-            
+
             long count = (long) aeItemStackClass.getMethod("getStackSize").invoke(result);
-            
+
             GTCEUTerminalMod.LOGGER.debug("Found {} of {} in ME network at {}", count, item, nodePos);
-            
+
             return count;
-            
+
         } catch (Exception e) {
             GTCEUTerminalMod.LOGGER.error("Error counting items in ME network", e);
             return 0;
@@ -151,10 +151,10 @@ public class MENetworkScanner {
         if (!isAE2Available()) {
             return 0;
         }
-        
+
         List<BlockPos> nodes = findNearbyMENodes(player, level, radius);
         long total = 0;
-        
+
         for (BlockPos nodePos : nodes) {
             long count = countItemInMENetwork(player, level, nodePos, item);
             if (count > 0) {
@@ -162,7 +162,26 @@ public class MENetworkScanner {
                 break;
             }
         }
-        
+
         return total;
+    }
+
+    // ── Safe tooltip helpers ──────────────────────────────────────────────────
+    /** These are the ONLY entry points items outside the ae2 package should use
+     * to check AE2 link state. They guard against classloading WirelessTerminalHandler
+     * when AE2 is absent.
+     * Returns true if AE2 is loaded AND the item is linked to a Wireless Access Point
+     */
+    public static boolean isItemLinked(net.minecraft.world.item.ItemStack stack) {
+        if (!isAE2Available()) return false;
+        return WirelessTerminalHandler.isLinked(stack);
+    }
+
+    // Returns true if AE2 is loaded AND the item is in range of its linked Access Point
+    public static boolean isItemInRange(net.minecraft.world.item.ItemStack stack,
+                                        Level level,
+                                        net.minecraft.world.entity.player.Player player) {
+        if (!isAE2Available()) return false;
+        return WirelessTerminalHandler.isInRange(stack, level, player);
     }
 }

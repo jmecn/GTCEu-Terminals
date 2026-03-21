@@ -1,8 +1,12 @@
 package com.gtceuterminal.client.gui.multiblock;
 
+import com.gtceuterminal.common.ae2.MENetworkScanner;
+import com.gtceuterminal.common.theme.ItemTheme;
 import com.gtceuterminal.GTCEUTerminalMod;
-import com.gtceuterminal.client.gui.factory.ManagerSettingsUIFactory;
+import com.gtceuterminal.client.gui.factory.MultiStructureManagerUIFactory;
 
+import com.lowdragmc.lowdraglib.gui.factory.HeldItemUIFactory;
+import com.lowdragmc.lowdraglib.gui.modular.IUIHolder;
 import com.lowdragmc.lowdraglib.gui.modular.ModularUI;
 import com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib.gui.widget.*;
@@ -13,287 +17,180 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
-// Manager Settings UI - Auto-Build Configuration
 public class ManagerSettingsUI {
 
-    private static final int GUI_WIDTH = 200;
-    // Smaller UI: removed Increase Radius option
+    private static final int GUI_WIDTH  = 200;
     private static final int GUI_HEIGHT = 175;
 
-    // GTCEu Colors
-    private static final int COLOR_BG_DARK = 0xFF1A1A1A;
-    private static final int COLOR_BG_MEDIUM = 0xFF2B2B2B;
-    private static final int COLOR_BG_LIGHT = 0xFF3F3F3F;
-    private static final int COLOR_BORDER_LIGHT = 0xFF5A5A5A;
+    private int COLOR_BG_DARK      = 0xFF1A1A1A;
+    private int COLOR_BG_MEDIUM    = 0xFF2B2B2B;
+    private int COLOR_BG_LIGHT     = 0xFF3F3F3F;
+    private int COLOR_BORDER_LIGHT = 0xFF5A5A5A;
     private static final int COLOR_BORDER_DARK = 0xFF0A0A0A;
-    private static final int COLOR_TEXT_WHITE = 0xFFFFFFFF;
-    private static final int COLOR_TEXT_GRAY = 0xFFAAAAAA;
+    private static final int COLOR_TEXT_WHITE  = 0xFFFFFFFF;
+    private static final int COLOR_TEXT_GRAY   = 0xFFAAAAAA;
 
-    private final ManagerSettingsUIFactory.SettingsHolder holder;
+    private ItemTheme theme;
+    private final IUIHolder uiHolder;   // either SettingsHolder or HeldItemHolder
+    private final ItemStack itemStack;  // the actual item — all logic reads this directly
     private final Player player;
 
-    public ManagerSettingsUI(ManagerSettingsUIFactory.SettingsHolder holder, Player player) {
-        this.holder = holder;
-        this.player = player;
+    // ── Constructor B: HeldItemUIFactory path (kept for compat) ─────────────
+    public ManagerSettingsUI(HeldItemUIFactory.HeldItemHolder heldHolder) {
+        this.uiHolder  = heldHolder;
+        this.itemStack = heldHolder.held;
+        this.player    = heldHolder.player;
+        applyTheme();
+    }
+
+    // ── Constructor C: MultiStructureManagerUIFactory path ───────────────────
+    public ManagerSettingsUI(MultiStructureManagerUIFactory.Holder holder, Player player) {
+        this.uiHolder  = holder;
+        this.itemStack = holder.getTerminalItem();
+        this.player    = player;
+        applyTheme();
+    }
+
+    private void applyTheme() {
+        this.theme          = ItemTheme.load(itemStack);
+        COLOR_BG_DARK       = theme.bgColor;
+        COLOR_BG_MEDIUM     = theme.panelColor;
+        COLOR_BG_LIGHT      = theme.isNativeStyle() ? 0xFF3A3A3A : theme.accent(0xAA);
+        COLOR_BORDER_LIGHT  = theme.isNativeStyle() ? 0xFF555555 : theme.accent(0xFF);
     }
 
     public ModularUI createUI() {
         WidgetGroup mainGroup = new WidgetGroup(0, 0, GUI_WIDTH, GUI_HEIGHT);
-        mainGroup.setBackground(new ColorRectTexture(COLOR_BG_DARK));
+        mainGroup.setBackground(theme.backgroundTexture());
 
-        // Borders
-        mainGroup.addWidget(new ImageWidget(0, 0, GUI_WIDTH, 2,
-                new ColorRectTexture(COLOR_BORDER_LIGHT)));
-        mainGroup.addWidget(new ImageWidget(0, 0, 2, GUI_HEIGHT,
-                new ColorRectTexture(COLOR_BORDER_LIGHT)));
-        mainGroup.addWidget(new ImageWidget(GUI_WIDTH - 2, 0, 2, GUI_HEIGHT,
-                new ColorRectTexture(COLOR_BORDER_DARK)));
-        mainGroup.addWidget(new ImageWidget(0, GUI_HEIGHT - 2, GUI_WIDTH, 2,
-                new ColorRectTexture(COLOR_BORDER_DARK)));
+        mainGroup.addWidget(new ImageWidget(0, 0, GUI_WIDTH, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+        mainGroup.addWidget(new ImageWidget(0, 0, 2, GUI_HEIGHT, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+        mainGroup.addWidget(new ImageWidget(GUI_WIDTH - 2, 0, 2, GUI_HEIGHT, new ColorRectTexture(COLOR_BORDER_DARK)));
+        mainGroup.addWidget(new ImageWidget(0, GUI_HEIGHT - 2, GUI_WIDTH, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
 
-        // Title
         LabelWidget title = new LabelWidget(GUI_WIDTH / 2 - 60, 8, "§lManager Settings");
         title.setTextColor(COLOR_TEXT_WHITE);
         mainGroup.addWidget(title);
 
-        // Settings panel
         mainGroup.addWidget(createSettingsPanel());
 
-        ModularUI gui = new ModularUI(new Size(GUI_WIDTH, GUI_HEIGHT), holder, player);
+        ModularUI gui = new ModularUI(new Size(GUI_WIDTH, GUI_HEIGHT), uiHolder, player);
         gui.widget(mainGroup);
-        gui.background(new ColorRectTexture(0x90000000));
-
+        gui.background(theme.modularUIBackground());
         return gui;
     }
 
     private WidgetGroup createSettingsPanel() {
         WidgetGroup panel = new WidgetGroup(8, 30, GUI_WIDTH - 16, GUI_HEIGHT - 40);
-        panel.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        panel.setBackground(theme.panelTexture());
 
-        ItemStack itemStack = holder.getTerminalItem();
         int yPos = 8;
 
-        // ═══════════════════════════════════════════════════════════════
-        // 1. No Hatch Mode (Build without hatches)
-        // ═══════════════════════════════════════════════════════════════
+        // 1. No Hatch Mode
         LabelWidget hatchLabel = new LabelWidget(8, yPos, "§7No Hatch Mode");
         panel.addWidget(hatchLabel);
-
         ButtonWidget hatchToggle = new ButtonWidget(GUI_WIDTH - 70, yPos - 2, 50, 16,
-                new ColorRectTexture(COLOR_BG_DARK),
-                cd -> toggleNoHatchMode(itemStack));
+                new ColorRectTexture(COLOR_BG_DARK), cd -> toggleNoHatchMode());
         hatchToggle.setHoverTexture(new ColorRectTexture(COLOR_BG_LIGHT));
-        hatchLabel.setHoverTooltips(Component.literal("§7Build without hatches (Hatches will be ignored when placing blocks)"));
+        hatchLabel.setHoverTooltips(Component.literal("§7Build without hatches"));
         panel.addWidget(hatchToggle);
-
-        LabelWidget hatchValue = new LabelWidget(GUI_WIDTH - 54, yPos + 2,
-                () -> getNoHatchMode(itemStack) == 1 ? "§aYes" : "§cNo");
-        panel.addWidget(hatchValue);
-
-        // Hint text
-        LabelWidget hatchHint = new LabelWidget(8, yPos + 14, "§8← Click to toggle");
-        hatchHint.setTextColor(0xFF666666);
-        panel.addWidget(hatchHint);
-
+        panel.addWidget(new LabelWidget(GUI_WIDTH - 54, yPos + 2,
+                () -> getNoHatchMode() == 1 ? "§aYes" : "§cNo"));
+        panel.addWidget(new LabelWidget(8, yPos + 14, "§8← Click to toggle").setTextColor(0xFF666666));
         yPos += 30;
 
-        // ═══════════════════════════════════════════════════════════════
-        // 2. Tier Mode (Component tier for auto-build)
-        // ═══════════════════════════════════════════════════════════════
+        // 2. Tier Mode
         LabelWidget tierLabel = new LabelWidget(8, yPos, "§7Tier Mode");
         tierLabel.setTextColor(COLOR_TEXT_GRAY);
         panel.addWidget(tierLabel);
-
         TextFieldWidget tierInput = new TextFieldWidget(GUI_WIDTH - 70, yPos - 2, 50, 16,
-                () -> String.valueOf(getTierMode(itemStack)),
-                value -> setTierMode(parseIntSafe(value, 1), itemStack));
+                () -> String.valueOf(getTierMode()),
+                value -> setTierMode(parseIntSafe(value, 1)));
         tierInput.setHoverTexture(new ColorRectTexture(COLOR_BG_LIGHT));
-        tierLabel.setHoverTooltips(Component.literal("§7Component tier to use (Example: 1 = LV, 2 = MV, etc.)"));
+        tierLabel.setHoverTooltips(Component.literal("§7Component tier (1=LV, 2=MV, ...)"));
         tierInput.setNumbersOnly(1, 16);
         tierInput.setTextColor(COLOR_TEXT_WHITE);
-        tierInput.setBackground(new ColorRectTexture(COLOR_BG_DARK));
-        tierInput.setWheelDur(1); // Scroll wheel support
+        tierInput.setBackground(theme.backgroundTexture());
+        tierInput.setWheelDur(1);
         panel.addWidget(tierInput);
-
-        // Hint text
-        LabelWidget tierHint = new LabelWidget(8, yPos + 14, "§8↑↓ Scroll or type");
-        tierHint.setTextColor(0xFF666666);
-        panel.addWidget(tierHint);
-
+        panel.addWidget(new LabelWidget(8, yPos + 14, "§8↑↓ Scroll or type").setTextColor(0xFF666666));
         yPos += 30;
 
-        // ═══════════════════════════════════════════════════════════════
-        // 3. Repeat Count (Number of times to repeat the structure)
-        // ═══════════════════════════════════════════════════════════════
+        // 3. Repeat Count
         LabelWidget repeatLabel = new LabelWidget(8, yPos, "§7Repeat Count");
         repeatLabel.setTextColor(COLOR_TEXT_GRAY);
         panel.addWidget(repeatLabel);
-
         TextFieldWidget repeatInput = new TextFieldWidget(GUI_WIDTH - 70, yPos - 2, 50, 16,
-                () -> String.valueOf(getRepeatCount(itemStack)),
-                value -> setRepeatCount(parseIntSafe(value, 0), itemStack));
+                () -> String.valueOf(getRepeatCount()),
+                value -> setRepeatCount(parseIntSafe(value, 0)));
         repeatInput.setHoverTexture(new ColorRectTexture(COLOR_BG_LIGHT));
         repeatLabel.setHoverTooltips(Component.literal("§7Number of times to repeat the structure"));
         repeatInput.setNumbersOnly(0, 32);
         repeatInput.setTextColor(COLOR_TEXT_WHITE);
-        repeatInput.setBackground(new ColorRectTexture(COLOR_BG_DARK));
-        repeatInput.setWheelDur(1); // Scroll wheel support
+        repeatInput.setBackground(theme.backgroundTexture());
+        repeatInput.setWheelDur(1);
         panel.addWidget(repeatInput);
-
-        // Hint text
-        LabelWidget repeatHint = new LabelWidget(8, yPos + 14, "§8Repeatable layers (0-99)");
-        repeatHint.setTextColor(0xFF666666);
-        panel.addWidget(repeatHint);
-
+        panel.addWidget(new LabelWidget(8, yPos + 14, "§8Repeatable layers (0-99)").setTextColor(0xFF666666));
         yPos += 30;
 
-        // ═══════════════════════════════════════════════════════════════
-        // 4. Use AE2 (Wireless Terminal required for auto-importing materials from AE2)
-        // ═══════════════════════════════════════════════════════════════
-        LabelWidget aeLabel = new LabelWidget(8, yPos, "§7Use AE2");
-        panel.addWidget(aeLabel);
-
-        ButtonWidget aeToggle = new ButtonWidget(GUI_WIDTH - 70, yPos - 2, 50, 16,
-                new ColorRectTexture(COLOR_BG_DARK),
-                cd -> toggleIsUseAE(itemStack));
-        aeToggle.setHoverTexture(new ColorRectTexture(COLOR_BG_LIGHT));
-        aeLabel.setHoverTooltips(Component.literal("§7Wireless Terminal is required"));
-        panel.addWidget(aeToggle);
-
-        LabelWidget aeValue = new LabelWidget(GUI_WIDTH - 54, yPos + 2,
-                () -> getIsUseAE(itemStack) == 1 ? "§aYes" : "§cNo");
-        panel.addWidget(aeValue);
-
-        // Hint text
-        LabelWidget aeHint = new LabelWidget(8, yPos + 14, "§8← Use AE2 for materials");
-        aeHint.setTextColor(0xFF666666);
-        panel.addWidget(aeHint);
+        // 4. Use AE2
+        if (MENetworkScanner.isAE2Available()) {
+            LabelWidget aeLabel = new LabelWidget(8, yPos, "§7Use AE2");
+            panel.addWidget(aeLabel);
+            ButtonWidget aeToggle = new ButtonWidget(GUI_WIDTH - 70, yPos - 2, 50, 16,
+                    new ColorRectTexture(COLOR_BG_DARK), cd -> toggleIsUseAE());
+            aeToggle.setHoverTexture(new ColorRectTexture(COLOR_BG_LIGHT));
+            aeLabel.setHoverTooltips(Component.literal("§7Wireless Terminal is required"));
+            panel.addWidget(aeToggle);
+            panel.addWidget(new LabelWidget(GUI_WIDTH - 54, yPos + 2,
+                    () -> getIsUseAE() == 1 ? "§aYes" : "§cNo"));
+            panel.addWidget(new LabelWidget(8, yPos + 14, "§8← Use AE2 for materials").setTextColor(0xFF666666));
+        }
 
         return panel;
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // NO HATCH MODE
-    // ═══════════════════════════════════════════════════════════════
-    private int getNoHatchMode(ItemStack itemStack) {
+    // ── NBT helpers (operate on itemStack directly) ───────────────────────────
+    private int getNoHatchMode() {
         CompoundTag tag = itemStack.getTag();
-        if (tag != null && tag.contains("NoHatchMode")) {
-            return tag.getInt("NoHatchMode");
-        }
-        return 0; // Default 0 = place hatches (No = place hatches)
+        return (tag != null && tag.contains("NoHatchMode")) ? tag.getInt("NoHatchMode") : 0;
+    }
+    private void toggleNoHatchMode() {
+        itemStack.getOrCreateTag().putInt("NoHatchMode", getNoHatchMode() == 1 ? 0 : 1);
     }
 
-    private void toggleNoHatchMode(ItemStack itemStack) {
-        int current = getNoHatchMode(itemStack);
-        CompoundTag tag = itemStack.getOrCreateTag();
-        tag.putInt("NoHatchMode", current == 1 ? 0 : 1);
-        itemStack.setTag(tag);
-        GTCEUTerminalMod.LOGGER.info("No Hatch Mode toggled to: {}", current == 1 ? 0 : 1);
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // TIER MODE
-    // ═══════════════════════════════════════════════════════════════
-    private int getTierMode(ItemStack itemStack) {
+    private int getTierMode() {
         CompoundTag tag = itemStack.getTag();
-        if (tag != null && tag.contains("TierMode")) {
-            return tag.getInt("TierMode");
-        }
-        return 1; // Default tier 1
+        return (tag != null && tag.contains("TierMode")) ? tag.getInt("TierMode") : 1;
+    }
+    private void setTierMode(int tier) {
+        itemStack.getOrCreateTag().putInt("TierMode", Math.max(1, Math.min(16, tier)));
     }
 
-    private void setTierMode(int tier, ItemStack itemStack) {
-        CompoundTag tag = itemStack.getOrCreateTag();
-        tag.putInt("TierMode", Math.max(1, Math.min(16, tier)));
-        itemStack.setTag(tag);
-        GTCEUTerminalMod.LOGGER.info("Tier Mode set to: {}", tier);
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // REPEAT COUNT
-    // ═══════════════════════════════════════════════════════════════
-    private int getRepeatCount(ItemStack itemStack) {
+    private int getRepeatCount() {
         CompoundTag tag = itemStack.getTag();
-        if (tag != null && tag.contains("RepeatCount")) {
-            return tag.getInt("RepeatCount");
-        }
-        return 0; // Default: 0 repeticiones
+        return (tag != null && tag.contains("RepeatCount")) ? tag.getInt("RepeatCount") : 0;
+    }
+    private void setRepeatCount(int count) {
+        itemStack.getOrCreateTag().putInt("RepeatCount", Math.max(0, Math.min(99, count)));
     }
 
-    private void setRepeatCount(int count, ItemStack itemStack) {
-        CompoundTag tag = itemStack.getOrCreateTag();
-        tag.putInt("RepeatCount", Math.max(0, Math.min(99, count)));
-        itemStack.setTag(tag);
-        GTCEUTerminalMod.LOGGER.info("Repeat Count set to: {}", count);
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // USE AE2
-    // ═══════════════════════════════════════════════════════════════
-    private int getIsUseAE(ItemStack itemStack) {
+    private int getIsUseAE() {
         CompoundTag tag = itemStack.getTag();
-        if (tag != null && tag.contains("IsUseAE")) {
-            return tag.getInt("IsUseAE");
-        }
-        return 0; // Default: No usar AE2
+        return (tag != null && tag.contains("IsUseAE")) ? tag.getInt("IsUseAE") : 0;
+    }
+    private void toggleIsUseAE() {
+        itemStack.getOrCreateTag().putInt("IsUseAE", getIsUseAE() == 1 ? 0 : 1);
     }
 
-    private void toggleIsUseAE(ItemStack itemStack) {
-        int current = getIsUseAE(itemStack);
-        CompoundTag tag = itemStack.getOrCreateTag();
-        tag.putInt("IsUseAE", current == 1 ? 0 : 1);
-        itemStack.setTag(tag);
-        GTCEUTerminalMod.LOGGER.info("Use AE2 toggled to: {}", current == 1 ? 0 : 1);
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // UTILITY
-    // ═══════════════════════════════════════════════════════════════
     private int parseIntSafe(String value, int defaultValue) {
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException e) {
-            return defaultValue;
-        }
+        try { return Integer.parseInt(value); }
+        catch (NumberFormatException e) { return defaultValue; }
     }
 
-    // Static helper class to read settings from item
-    public static class Settings {
-        public final int noHatchMode;
-        public final int tierMode;
-        public final int repeatCount;
-        public final int isUseAE;
-
-        public Settings(ItemStack itemStack) {
-            CompoundTag tag = itemStack.getTag();
-            if (tag != null) {
-                this.noHatchMode = tag.contains("NoHatchMode") ? tag.getInt("NoHatchMode") : 0;
-                this.tierMode = tag.contains("TierMode") ? tag.getInt("TierMode") : 1;
-                this.repeatCount = tag.contains("RepeatCount") ? tag.getInt("RepeatCount") : 0;
-                this.isUseAE = tag.contains("IsUseAE") ? tag.getInt("IsUseAE") : 0;
-            } else {
-                this.noHatchMode = 0;
-                this.tierMode = 1;
-                this.repeatCount = 0;
-                this.isUseAE = 0;
-            }
-        }
-
-        public AutoBuildSettings toAutoBuildSettings() {
-            AutoBuildSettings settings = new AutoBuildSettings();
-            settings.noHatchMode = this.noHatchMode;
-            settings.tierMode = this.tierMode;
-            settings.repeatCount = this.repeatCount;
-            settings.isUseAE = this.isUseAE;
-            return settings;
-        }
+    // ── Thin subclasses kept for compile compat ───────────────────────────────
+    public static class Settings extends com.gtceuterminal.common.config.ManagerSettings.Settings {
+        public Settings(ItemStack itemStack) { super(itemStack); }
     }
-
-    // Auto-build settings for use when constructing multiblocks
-    public static class AutoBuildSettings {
-        public int repeatCount = 0;  // Number of repetitions (0 = use default)
-        public int noHatchMode = 0;  // 0 = place hatches, 1 = don't place hatches
-        public int tierMode = 1;     // Component tier to use
-        public int isUseAE = 0;
-    }
+    public static class AutoBuildSettings extends com.gtceuterminal.common.config.ManagerSettings.AutoBuildSettings {}
 }

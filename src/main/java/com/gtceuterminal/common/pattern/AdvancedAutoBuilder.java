@@ -1,14 +1,11 @@
 package com.gtceuterminal.common.pattern;
 
-import appeng.api.networking.IGrid;
-import appeng.api.networking.security.IActionSource;
-import appeng.me.helpers.PlayerSource;
-
+import com.gtceuterminal.common.ae2.MENetworkExtractor;
 import com.gtceuterminal.common.ae2.MENetworkFluidHandlerWrapper;
 import com.gtceuterminal.common.ae2.WirelessTerminalHandler;
 
 import com.gtceuterminal.GTCEUTerminalMod;
-import com.gtceuterminal.client.gui.multiblock.ManagerSettingsUI;
+import com.gtceuterminal.common.config.ManagerSettings;
 import com.gtceuterminal.common.ae2.MENetworkItemExtractor;
 import com.gtceuterminal.common.config.ComponentRegistry;
 import com.gtceuterminal.common.config.ComponentRegistry.ComponentCategory;
@@ -111,7 +108,7 @@ public class AdvancedAutoBuilder {
     public static boolean autoBuild(
             @NotNull Player player,
             @NotNull IMultiController controller,
-            @NotNull ManagerSettingsUI.AutoBuildSettings settings
+            @NotNull ManagerSettings.AutoBuildSettings settings
     ) {
         try {
             ensureReflection();
@@ -739,41 +736,19 @@ public class AdvancedAutoBuilder {
             if (stack.isEmpty()) continue;
 
             // Check if this is a wireless terminal and AE2 is enabled
-            if (isUseAE == 1 &&
-                    stack.getItem() instanceof appeng.items.tools.powered.WirelessTerminalItem terminalItem &&
-                    stack.hasTag() &&
-                    stack.getTag().contains("accessPoint", 10)) {
+            if (isUseAE == 1 && WirelessTerminalHandler.isWirelessTerminal(stack)
+                    && WirelessTerminalHandler.isLinked(stack)) {
 
-                try {
-                    IGrid grid = terminalItem.getLinkedGrid(stack, player.level(), player);
-                    if (grid != null) {
-                        var storage = grid.getStorageService().getInventory();
-
-                        // Try to extract each candidate from ME Network
-                        for (ItemStack candidate : candidates) {
-                            long extracted = storage.extract(
-                                    appeng.api.stacks.AEItemKey.of(candidate),
-                                    1,
-                                    appeng.api.config.Actionable.MODULATE,
-                                    null
-                            );
-
-                            if (extracted > 0) {
-                                // Create temporary handler with the extracted item
-                                net.minecraft.core.NonNullList<ItemStack> stacks =
-                                        net.minecraft.core.NonNullList.withSize(1, candidate.copy());
-                                net.minecraftforge.items.IItemHandler tempHandler =
-                                        new net.minecraftforge.items.ItemStackHandler(stacks);
-
-                                GTCEUTerminalMod.LOGGER.debug("Extracted {} from ME Network",
-                                        candidate.getItem().getDescription().getString());
-
-                                return it.unimi.dsi.fastutil.ints.IntObjectPair.of(0, tempHandler);
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    GTCEUTerminalMod.LOGGER.error("Failed to extract from ME Network", e);
+                ItemStack extracted = MENetworkExtractor.tryExtractCandidateFromLinkedTerminal(
+                        candidates, player);
+                if (extracted != null) {
+                    net.minecraft.core.NonNullList<ItemStack> stacks =
+                            net.minecraft.core.NonNullList.withSize(1, extracted);
+                    net.minecraftforge.items.IItemHandler tempHandler =
+                            new net.minecraftforge.items.ItemStackHandler(stacks);
+                    GTCEUTerminalMod.LOGGER.debug("Extracted {} from ME Network via terminal",
+                            extracted.getItem().getDescription().getString());
+                    return it.unimi.dsi.fastutil.ints.IntObjectPair.of(0, tempHandler);
                 }
             }
 
@@ -793,40 +768,8 @@ public class AdvancedAutoBuilder {
     // -------------------------------
     @Nullable
     private static IFluidHandler getMENetworkFluidStorage(@NotNull Player player) {
-        try {
-            // Check all items in the player's inventory for a linked terminal
-            // Priority: main hand → off hand → rest of inventory
-            List<ItemStack> toCheck = new ArrayList<>();
-            toCheck.add(player.getMainHandItem());
-            toCheck.add(player.getOffhandItem());
-            for (ItemStack stack : player.getInventory().items) {
-                toCheck.add(stack);
-            }
-
-            for (ItemStack stack : toCheck) {
-                if (stack.isEmpty()) continue;
-
-                // Check if it's one of our terminals linked to an AE2 access point
-                if (!WirelessTerminalHandler.isLinked(stack)) continue;
-
-                IGrid grid = WirelessTerminalHandler.getLinkedGrid(stack, player.level(), player);
-                if (grid == null) continue;
-
-                // Build action source attributed to the player (respects AE2 security)
-                IActionSource actionSource = new PlayerSource(player, null);
-
-                MENetworkFluidHandlerWrapper wrapper = MENetworkFluidHandlerWrapper.fromGrid(grid, actionSource);
-                if (wrapper != null) {
-                    GTCEUTerminalMod.LOGGER.debug("Connected to ME Network fluid storage via terminal in slot");
-                    return wrapper;
-                }
-            }
-
-        } catch (Exception e) {
-            GTCEUTerminalMod.LOGGER.error("Error accessing ME Network for fluid storage", e);
-        }
-
-        return null;
+        // Delegate to MENetworkFluidHandlerWrapper — keeps all appeng.* inside the ae2 package
+        return MENetworkFluidHandlerWrapper.getFromPlayer(player);
     }
 
     private static ItemStack computeFallbackCasing(
@@ -899,7 +842,7 @@ public class AdvancedAutoBuilder {
     private static Map<Item, Integer> preCalculateMaterials(
             Player player,
             IMultiController controller,
-            ManagerSettingsUI.AutoBuildSettings settings,
+            ManagerSettings.AutoBuildSettings settings,
             TraceabilityPredicate[][][] blockMatches,
             int[][] aisleRepetitions,
             RelativeDirection[] structureDir,

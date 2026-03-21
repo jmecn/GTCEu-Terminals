@@ -1,5 +1,6 @@
 package com.gtceuterminal.client.highlight;
 
+import com.gtceuterminal.GTCEUTerminalMod;
 import com.gtceuterminal.common.multiblock.MultiblockInfo;
 import com.gtceuterminal.common.multiblock.MultiblockScanner;
 import com.gtceuterminal.common.multiblock.MultiblockStatus;
@@ -9,15 +10,29 @@ import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
 // Manages multiblock highlighting on client side
+@Mod.EventBusSubscriber(modid = GTCEUTerminalMod.MOD_ID, value = Dist.CLIENT)
 public class MultiblockHighlighter {
 
     private static final Map<BlockPos, HighlightInfo> activeHighlights = new HashMap<>();
 
+    // Clear all highlights when the client level unloads (world change, disconnect). */
+    @SubscribeEvent
+    public static void onLevelUnload(LevelEvent.Unload event) {
+        if (event.getLevel().isClientSide()) {
+            activeHighlights.clear();
+            GTCEUTerminalMod.LOGGER.debug("MultiblockHighlighter: cleared highlights on level unload");
+        }
+    }
     public static class HighlightInfo {
         public final BlockPos controllerPos;
         public final Set<BlockPos> blocks;
@@ -91,8 +106,8 @@ public class MultiblockHighlighter {
         activeHighlights.put(controllerPos, info);
 
         /**com.gtceuterminal.GTCEUTerminalMod.LOGGER.info(
-                "Highlight: {} blocks at {} color=0x{} duration={}ms",
-                blocks.size(), controllerPos, Integer.toHexString(color), durationMs);**/
+         "Highlight: {} blocks at {} color=0x{} duration={}ms",
+         blocks.size(), controllerPos, Integer.toHexString(color), durationMs);**/
     }
 
     // Convenience method to highlight based on multiblock status color

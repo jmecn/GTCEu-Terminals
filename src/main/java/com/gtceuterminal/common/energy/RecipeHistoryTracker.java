@@ -4,10 +4,15 @@ import com.gregtechceu.gtceu.api.capability.recipe.ItemRecipeCapability;
 import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+
 import com.gtceuterminal.GTCEUTerminalMod;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.crafting.Ingredient;
+
+import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
@@ -17,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 // Tracks recipe history for machines with RecipeLogic, detecting starts, completions, and interruptions.
+@Mod.EventBusSubscriber(modid = com.gtceuterminal.GTCEUTerminalMod.MOD_ID)
 public class RecipeHistoryTracker {
 
     public static final int MAX_HISTORY = 20;
@@ -28,6 +34,7 @@ public class RecipeHistoryTracker {
     private static final Map<BlockPos, TrackState> stateMap = new HashMap<>();
 
     private static Field progressField;
+    private static Field lastRecipeField;
 
     static {
         try {
@@ -36,11 +43,24 @@ public class RecipeHistoryTracker {
         } catch (Exception e) {
             GTCEUTerminalMod.LOGGER.warn("RecipeHistoryTracker: could not access RecipeLogic.progress", e);
         }
+        try {
+            lastRecipeField = RecipeLogic.class.getDeclaredField("lastRecipe");
+            lastRecipeField.setAccessible(true);
+        } catch (Exception e) {
+            GTCEUTerminalMod.LOGGER.warn("RecipeHistoryTracker: could not access RecipeLogic.lastRecipe", e);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onLevelUnload(LevelEvent.Unload event) {
+        historyMap.clear();
+        stateMap.clear();
+        GTCEUTerminalMod.LOGGER.debug("RecipeHistoryTracker: cleared all state on level unload");
     }
 
     // ─── Internal state per machine ──────────────────────────────────────────
     private static class TrackState {
-        String  lastRecipeId     = "";   // recipe path, or "" if none
+        String  lastRecipeId     = "";
         int     lastProgress     = 0;
         long    recipeStartTime  = 0;
         String  currentOutput    = "";
@@ -138,10 +158,9 @@ public class RecipeHistoryTracker {
     }
 
     private static GTRecipe getCurrentRecipe(RecipeLogic logic) {
+        if (lastRecipeField == null) return null;
         try {
-            Field f = RecipeLogic.class.getDeclaredField("lastRecipe");
-            f.setAccessible(true);
-            return (GTRecipe) f.get(logic);
+            return (GTRecipe) lastRecipeField.get(logic);
         } catch (Exception e) { return null; }
     }
 

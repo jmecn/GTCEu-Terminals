@@ -1,12 +1,14 @@
 package com.gtceuterminal.client.gui.multiblock;
 
+import com.gtceuterminal.common.theme.ItemTheme;
 import com.gtceuterminal.GTCEUTerminalMod;
 import com.gtceuterminal.client.gui.dialog.ComponentUpgradeDialog;
-import com.gtceuterminal.client.gui.factory.MultiStructureUIFactory;
+import com.gtceuterminal.client.gui.factory.MultiStructureManagerUIFactory;
 import com.gtceuterminal.common.multiblock.ComponentGroup;
 import com.gtceuterminal.common.multiblock.ComponentInfo;
 import com.gtceuterminal.common.multiblock.MultiblockInfo;
 
+import com.lowdragmc.lowdraglib.gui.modular.IUIHolder;
 import com.lowdragmc.lowdraglib.gui.modular.ModularUI;
 import com.lowdragmc.lowdraglib.gui.texture.ColorBorderTexture;
 import com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture;
@@ -27,16 +29,18 @@ public class ComponentDetailUI {
     private static final int TARGET_H = 360;
 
     // GTCEu Colors
-    private static final int COLOR_BG_DARK = 0xFF1A1A1A;
-    private static final int COLOR_BG_MEDIUM = 0xFF2B2B2B;
-    private static final int COLOR_BG_LIGHT = 0xFF3F3F3F;
-    private static final int COLOR_BORDER_LIGHT = 0xFF5A5A5A;
+    private ItemTheme theme;
+    private int COLOR_BG_DARK = 0xFF1A1A1A;
+    private int COLOR_BG_MEDIUM = 0xFF2B2B2B;
+    private int COLOR_BG_LIGHT = 0xFF3F3F3F;
+    private int COLOR_BORDER_LIGHT = 0xFF5A5A5A;
     private static final int COLOR_BORDER_DARK = 0xFF0A0A0A;
     private static final int COLOR_TEXT_WHITE = 0xFFFFFFFF;
     private static final int COLOR_TEXT_GRAY = 0xFFAAAAAA;
     private static final int COLOR_SUCCESS = 0xFF00FF00;
 
-    private final MultiStructureUIFactory.MultiStructureHolder holder;
+    private final IUIHolder holder;
+    private final net.minecraft.world.item.ItemStack terminalItem;
     private final Player player;
     private final MultiblockInfo multiblock;
     private ModularUI gui;
@@ -54,12 +58,26 @@ public class ComponentDetailUI {
     // Font/scale
     private float textScale;
 
-    public ComponentDetailUI(MultiStructureUIFactory.MultiStructureHolder holder,
+    public ComponentDetailUI(IUIHolder holder, net.minecraft.world.item.ItemStack terminalItem,
                              Player player,
                              MultiblockInfo multiblock) {
         this.holder = holder;
+        this.terminalItem = terminalItem;
         this.player = player;
         this.multiblock = multiblock;
+        // Apply theme colors
+        this.theme              = ItemTheme.load(terminalItem);
+        com.gtceuterminal.GTCEUTerminalMod.LOGGER.info(
+                "ComponentDetailUI: loaded theme accent=#{} bg=#{} style={} itemTag={}",
+                Integer.toHexString(this.theme.accentColor & 0xFFFFFF).toUpperCase(),
+                Integer.toHexString(this.theme.bgColor     & 0xFFFFFF).toUpperCase(),
+                this.theme.uiStyle,
+                terminalItem.getTag() != null
+                        ? terminalItem.getTag().contains("Theme") : "NO-TAG");
+        this.COLOR_BG_DARK      = theme.bgColor;
+        this.COLOR_BG_MEDIUM    = theme.panelColor;
+        this.COLOR_BG_LIGHT     = theme.isNativeStyle() ? 0xFF3A3A3A : theme.accent(0xAA);
+        this.COLOR_BORDER_LIGHT = theme.isNativeStyle() ? 0xFF555555 : theme.accent(0xFF);
     }
 
     public ModularUI createUI() {
@@ -100,24 +118,28 @@ public class ComponentDetailUI {
 
         this.gui = new ModularUI(new Size(uiW, uiH), holder, player);
         gui.widget(mainGroup);
-        gui.background(new ColorRectTexture(0x90000000));
+        gui.background(theme.modularUIBackground());
         return gui;
     }
 
     private WidgetGroup createMainPanel() {
         WidgetGroup panel = new WidgetGroup(0, 0, uiW, uiH);
 
-        panel.addWidget(new ImageWidget(0, 0, uiW, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-        panel.addWidget(new ImageWidget(0, 0, 2, uiH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-        panel.addWidget(new ImageWidget(uiW - 2, 0, 2, uiH, new ColorRectTexture(COLOR_BORDER_DARK)));
-        panel.addWidget(new ImageWidget(0, uiH - 2, uiW, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
+        if (theme.isNativeStyle()) {
+            panel.setBackground(com.gregtechceu.gtceu.api.gui.GuiTextures.BACKGROUND);
+        } else {
+            panel.addWidget(new ImageWidget(0, 0, uiW, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+            panel.addWidget(new ImageWidget(0, 0, 2, uiH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+            panel.addWidget(new ImageWidget(uiW - 2, 0, 2, uiH, new ColorRectTexture(COLOR_BORDER_DARK)));
+            panel.addWidget(new ImageWidget(0, uiH - 2, uiW, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
+        }
 
         return panel;
     }
 
     private WidgetGroup createHeader() {
         WidgetGroup header = new WidgetGroup(2, headerY, uiW - 4, headerH);
-        header.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        header.setBackground(theme.headerTexture());
 
         String title = "§l§f" + multiblock.getName() + " - Components";
         if (compact) title = "§l§f" + multiblock.getName();
@@ -128,7 +150,7 @@ public class ComponentDetailUI {
 
     private WidgetGroup createInfoPanel() {
         WidgetGroup infoPanel = new WidgetGroup(pad, infoY, uiW - pad * 2, infoH);
-        infoPanel.setBackground(new ColorRectTexture(COLOR_BG_MEDIUM));
+        infoPanel.setBackground(theme.panelTexture());
 
         int y = compact ? 6 : 8;
 
@@ -161,10 +183,7 @@ public class ComponentDetailUI {
 
     private WidgetGroup createComponentGroupsList() {
         WidgetGroup listPanel = new WidgetGroup(pad, listY, uiW - pad * 2, listH);
-        listPanel.setBackground(new GuiTextureGroup(
-                new ColorRectTexture(COLOR_BG_DARK),
-                new ColorBorderTexture(1, COLOR_BORDER_DARK)
-        ));
+        listPanel.setBackground(theme.panelWithBorderTexture());
 
         addText(listPanel, 10, 5, uiW - pad * 2 - 20, "§l§7Component Groups:", textScale);
 
@@ -317,7 +336,8 @@ public class ComponentDetailUI {
                     null,
                     group,
                     multiblock,
-                    player
+                    player,
+                    theme  // pass resolved theme directly — avoids inventory search issues
             );
         }
     }
@@ -337,7 +357,6 @@ public class ComponentDetailUI {
     }
 
     // --- text helpers (safe scaling) ---
-
     private void addText(WidgetGroup parent, int x, int y, int w, String text, float scale) {
         TextTexture tt = scaledTextTexture(text, w, scale);
         parent.addWidget(new ImageWidget(x, y, w, 12, tt));
@@ -356,10 +375,10 @@ public class ComponentDetailUI {
         return tt;
     }
 
-    public static ModularUI create(MultiStructureUIFactory.MultiStructureHolder holder,
+    public static ModularUI create(MultiStructureManagerUIFactory.Holder holder,
                                    Player player,
                                    MultiblockInfo multiblock) {
-        ComponentDetailUI ui = new ComponentDetailUI(holder, player, multiblock);
+        ComponentDetailUI ui = new ComponentDetailUI(holder, holder.getTerminalItem(), player, multiblock);
         return ui.createUI();
     }
 }

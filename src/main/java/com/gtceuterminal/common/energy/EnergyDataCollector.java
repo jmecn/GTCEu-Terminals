@@ -21,8 +21,13 @@ import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+
+import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.ForgeRegistries;
 
+import java.lang.reflect.Field;
 import java.math.BigInteger;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -30,10 +35,43 @@ import java.util.HashMap;
 import java.util.Map;
 
 // Collects energy data from GTCEu machines at a given position and time, including current state and historical input/output for graphing.
+@Mod.EventBusSubscriber(modid = com.gtceuterminal.GTCEUTerminalMod.MOD_ID)
 public class EnergyDataCollector {
 
     private static final Map<String, Deque<Long>> inputHistoryMap  = new HashMap<>();
     private static final Map<String, Deque<Long>> outputHistoryMap = new HashMap<>();
+
+    @SubscribeEvent
+    public static void onLevelUnload(LevelEvent.Unload event) {
+        if (!event.getLevel().isClientSide()) {
+            inputHistoryMap.clear();
+            outputHistoryMap.clear();
+            com.gtceuterminal.GTCEUTerminalMod.LOGGER.debug(
+                    "EnergyDataCollector: cleared history maps on level unload");
+        }
+    }
+
+    // Cached reflection fields — obtained once to avoid per-tick getDeclaredField overhead.
+    private static final Field PROGRESS_FIELD;
+    private static final Field LAST_RECIPE_FIELD;
+
+    static {
+        Field pf = null, rf = null;
+        try {
+            pf = RecipeLogic.class.getDeclaredField("progress");
+            pf.setAccessible(true);
+        } catch (Exception e) {
+            GTCEUTerminalMod.LOGGER.warn("EnergyDataCollector: could not cache RecipeLogic.progress", e);
+        }
+        try {
+            rf = RecipeLogic.class.getDeclaredField("lastRecipe");
+            rf.setAccessible(true);
+        } catch (Exception e) {
+            GTCEUTerminalMod.LOGGER.warn("EnergyDataCollector: could not cache RecipeLogic.lastRecipe", e);
+        }
+        PROGRESS_FIELD = pf;
+        LAST_RECIPE_FIELD = rf;
+    }
 
     // ─── Main entry point ────────────────────────────────────────────────────
     public static EnergySnapshot collect(ServerLevel level, BlockPos pos,
@@ -133,7 +171,8 @@ public class EnergyDataCollector {
                 }
             }
 
-            // History
+            // History — use dimension + position as key to avoid collisions between
+            // machines with the same custom name in different dimensions or locations.
             String key = historyKey(level, pos);
             int maxH = ItemsConfig.getEAHistorySeconds();
             snap.inputHistory  = updateHistory(inputHistoryMap,  key, snap.inputPerSec,  maxH);
@@ -156,9 +195,7 @@ public class EnergyDataCollector {
             snap.recipeDuration = logic.getMaxProgress();
             // Read progress ticks directly for accuracy (field is protected)
             try {
-                var progressField = RecipeLogic.class.getDeclaredField("progress");
-                progressField.setAccessible(true);
-                int progressTicks = (int) progressField.get(logic);
+                int progressTicks = PROGRESS_FIELD != null ? (int) PROGRESS_FIELD.get(logic) : 0;
                 snap.recipeProgress = snap.recipeDuration > 0
                         ? (float) progressTicks / snap.recipeDuration : 0f;
                 snap.recipeProgressTicks = progressTicks;
@@ -168,11 +205,9 @@ public class EnergyDataCollector {
             }
 
             if (logic.isWorking() || logic.isWaiting()) {
-                // lastRecipe is protected — use reflection
+                // lastRecipe is protected — use cached reflection field
                 try {
-                    var field = RecipeLogic.class.getDeclaredField("lastRecipe");
-                    field.setAccessible(true);
-                    Object recipeObj = field.get(logic);
+                    Object recipeObj = LAST_RECIPE_FIELD != null ? LAST_RECIPE_FIELD.get(logic) : null;
                     if (recipeObj instanceof com.gregtechceu.gtceu.api.recipe.GTRecipe recipe) {
                         // Prefer output item display name over recipe path
                         snap.recipeId = getOutputName(recipe);

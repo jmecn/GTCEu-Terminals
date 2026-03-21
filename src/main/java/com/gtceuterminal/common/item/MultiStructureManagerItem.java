@@ -1,6 +1,7 @@
 package com.gtceuterminal.common.item;
 
-import com.gtceuterminal.common.ae2.WirelessTerminalHandler;
+import com.gtceuterminal.GTCEUTerminalMod;
+import com.gtceuterminal.common.ae2.MENetworkScanner;
 import com.gtceuterminal.common.item.behavior.MultiStructureManagerBehavior;
 
 import net.minecraft.ChatFormatting;
@@ -34,10 +35,12 @@ public class MultiStructureManagerItem extends Item {
     }
 
     @Override
-    public @NotNull InteractionResultHolder<ItemStack> use(@NotNull Level level, @NotNull Player player, @NotNull InteractionHand usedHand) {
+    public @NotNull InteractionResultHolder<ItemStack> use(@NotNull Level level, @NotNull Player player,
+                                                           @NotNull InteractionHand usedHand) {
         return behavior.use(this, level, player, usedHand);
     }
 
+    // ── Tooltip ───────────────────────────────────────────────────────────────
     @Override
     public @NotNull Component getName(@NotNull ItemStack stack) {
         return Component.translatable(this.getDescriptionId(stack))
@@ -49,48 +52,28 @@ public class MultiStructureManagerItem extends Item {
                                 @NotNull List<Component> tooltipComponents, @NotNull TooltipFlag isAdvanced) {
         super.appendHoverText(stack, level, tooltipComponents, isAdvanced);
 
-        tooltipComponents.add(Component.literal("Multiblock Management Tool")
-                .withStyle(ChatFormatting.GOLD));
+        tooltipComponents.add(Component.literal("Multiblock Management Tool").withStyle(ChatFormatting.GOLD));
         tooltipComponents.add(Component.literal(""));
 
-        if (WirelessTerminalHandler.isLinked(stack)) {
-            tooltipComponents.add(Component.literal("✓ Linked to ME Network")
-                    .withStyle(ChatFormatting.GREEN));
-
-            if (level != null && !level.isClientSide) {
-                Player player = level.getNearestPlayer(
-                        stack.getTag() != null ? stack.getTag().getDouble("LastX") : 0,
-                        stack.getTag() != null ? stack.getTag().getDouble("LastY") : 0,
-                        stack.getTag() != null ? stack.getTag().getDouble("LastZ") : 0,
-                        100,
-                        p -> !p.isSpectator()
-                );
-
-                if (player != null) {
-                    if (WirelessTerminalHandler.isInRange(stack, level, player)) {
-                        tooltipComponents.add(Component.literal("  ● In Range")
-                                .withStyle(ChatFormatting.AQUA));
-                    } else {
-                        tooltipComponents.add(Component.literal("  ● Out of Range")
-                                .withStyle(ChatFormatting.RED));
-                    }
+        if (MENetworkScanner.isAE2Available()) {
+            if (MENetworkScanner.isItemLinked(stack)) {
+                tooltipComponents.add(Component.literal("✓ Linked to ME Network").withStyle(ChatFormatting.GREEN));
+                if (level != null && level.isClientSide) {
+                    ClientTooltipHelper.appendAE2RangeTooltip(stack, level, tooltipComponents);
                 }
+            } else {
+                tooltipComponents.add(Component.literal("✗ Not Linked").withStyle(ChatFormatting.GRAY));
+                tooltipComponents.add(Component.literal("  Place in ME Wireless Access Point to link")
+                        .withStyle(ChatFormatting.DARK_GRAY));
             }
-        } else {
-            tooltipComponents.add(Component.literal("✗ Not Linked")
-                    .withStyle(ChatFormatting.GRAY));
-            tooltipComponents.add(Component.literal("  Place in ME Wireless Access Point to link")
-                    .withStyle(ChatFormatting.DARK_GRAY));
         }
 
         tooltipComponents.add(Component.literal(""));
         tooltipComponents.add(Component.literal("Right-click: ")
                 .withStyle(ChatFormatting.GRAY)
-                .append(Component.literal("Settings")
-                        .withStyle(ChatFormatting.AQUA)));
+                .append(Component.literal("Settings").withStyle(ChatFormatting.AQUA)));
         tooltipComponents.add(Component.literal("Shift + Right-click: ")
                 .withStyle(ChatFormatting.GRAY)
-                .append(Component.literal("Manage Multiblocks")
-                        .withStyle(ChatFormatting.RED)));
+                .append(Component.literal("Manage Multiblocks").withStyle(ChatFormatting.RED)));
     }
 }
