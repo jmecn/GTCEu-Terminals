@@ -49,7 +49,9 @@ public class DismantlerItem extends Item {
 
         if (!level.isClientSide) {
             player.displayClientMessage(
-                    Component.literal("§cNot a formed multiblock controller!"), true);
+                    Component.translatable("item.gtceuterminal.dismantler.message.not_formed_controller"),
+                    true
+            );
         }
         return InteractionResult.PASS;
     }

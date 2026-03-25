@@ -1,16 +1,13 @@
 {
   "itemGroup.gtceuterminal": "GregTechCEu Terminal",
 
-  "item.gtceuterminal.multi_structure_manager": "§4Multi-Structure Manager",
-  "item.gtceuterminal.schematic_interface": "Schematic Interface",
-  "item.gtceuterminal.dismantler": "§5Dismantler",
-
   "item.gtceuterminal.terminal.success": "Multiblock Built Successfully",
   "item.gtceuterminal.terminal.failed": "Failed to Build Multiblock",
   "item.gtceuterminal.terminal.cooldown": "Terminal on Cooldown",
   "item.gtceuterminal.terminal.not_controller": "Not a Multiblock Controller",
   "item.gtceuterminal.terminal.already_formed": "Multiblock Already Formed",
 
+  "item.gtceuterminal.multi_structure_manager": "§4Multi-Structure Manager",
   "item.gtceuterminal.multi_structure_manager.tooltip": "Manage and Upgrade Nearby Multiblocks",
   "item.gtceuterminal.multi_structure_manager.tooltip.tool": "§6Multiblock Management Tool",
   "item.gtceuterminal.multi_structure_manager.tooltip.linked": "§a✓ Linked to ME Network",
@@ -18,6 +15,8 @@
   "item.gtceuterminal.multi_structure_manager.tooltip.place_in_me_wireless_access_point": "§8  Place in ME Wireless Access Point to link",
   "item.gtceuterminal.multi_structure_manager.tooltip.right_click_settings": "§8Right-click: §bSettings",
   "item.gtceuterminal.multi_structure_manager.tooltip.shift_right_click_manage": "§8Shift + Right-click: §cManage Multiblocks",
+
+  "item.gtceuterminal.schematic_interface": "Schematic Interface",
   "item.gtceuterminal.schematic_interface.tooltip": "Copy and Paste Multiblock Schematics",
   "item.gtceuterminal.schematic_interface.tooltip.blueprint_tool": "§6Blueprint Tool",
   "item.gtceuterminal.schematic_interface.tooltip.linked": "§a✓ Linked to ME Network",
@@ -27,9 +26,12 @@
   "item.gtceuterminal.schematic_interface.tooltip.open_schematic_gui": "§bOpen Schematic GUI",
   "item.gtceuterminal.schematic_interface.tooltip.right_click_prefix": "§8Right-click: ",
   "item.gtceuterminal.schematic_interface.tooltip.paste_schematic": "§ePaste Schematic",
+
+  "item.gtceuterminal.dismantler": "§5Dismantler",
   "item.gtceuterminal.dismantler.tooltip": "Disassemble Multiblocks and Return Components",
   "item.gtceuterminal.dismantler.tooltip.tool": "§6Multiblock Removal Tool",
   "item.gtceuterminal.dismantler.tooltip.open_dismantler_gui": "§7Right-click on Multiblock: §dOpen Dismantler GUI",
+  "item.gtceuterminal.dismantler.message.not_formed_controller": "§cNot a formed multiblock controller!",
 
   "item.gtceuterminal.energy_analyzer": "Energy Analyzer",
   "item.gtceuterminal.energy_analyzer.tooltip.tool": "§6Energy Monitoring Tool",
@@ -41,10 +43,64 @@
   "item.gtceuterminal.energy_analyzer.tooltip.right_click_air_open": "§7Right-click (air): §bOpen list",
   "item.gtceuterminal.energy_analyzer.tooltip.shift_right_click_manage": "§7Shift + Right-click: §eLink / Unlink machine",
 
+  "item.gtceuterminal.energy_analyzer.message.unlinked": "§cUnlinked: §f%s",
+  "item.gtceuterminal.energy_analyzer.message.cannot_link_more": "§cCannot link more than §f%d§c machines. Unlink one first.",
+  "item.gtceuterminal.energy_analyzer.message.dimension_not_allowed": "§cDimension §f%s§c is not allowed in config.",
+  "item.gtceuterminal.energy_analyzer.message.linked": "§aLinked: §f%s §7(%d/%d)",
+  "item.gtceuterminal.energy_analyzer.message.machine_not_linked_prompt": "§eThis machine is not linked. §7Shift+click to link it first.",
+  "item.gtceuterminal.energy_analyzer.message.no_machines_linked_air": "§eNo machines linked. §7Shift+click a GTCEu machine to link it.",
+
+  "item.gtceuterminal.component_upgrade.extraction_source.me_network": " §a(ME Network)",
+  "item.gtceuterminal.component_upgrade.extraction_source.inventory": " §7(Inventory)",
+  "item.gtceuterminal.component_upgrade.unknown_coil": "Unknown Coil",
+  "item.gtceuterminal.component_upgrade.message.upgraded_coils": "§e⚠ Upgraded %d coils to §6%s%s",
+  "item.gtceuterminal.component_upgrade.message.reset_multiblock": "§6⚠ Reset multiblock to apply new temperature",
+  "item.gtceuterminal.component_upgrade.message.upgraded": "§aUpgraded %d component(s)",
+  "item.gtceuterminal.component_upgrade.message.warning_void_or_dropped": "§6⚠ Items may be voided or dropped when upgrading/downgrading components",
+  "item.gtceuterminal.component_upgrade.message.failed": "§cFailed to upgrade %d component(s)",
+
+  "item.gtceuterminal.autocraft_confirm.message.autocraft_failed": "§c[GTCEu Terminals] Autocraft failed: %s",
+  "item.gtceuterminal.autocraft_confirm.message.controller_not_found": "§cController not found at target position.",
+  "item.gtceuterminal.autocraft_confirm.message.target_not_multiblock_controller": "§cTarget is not a multiblock controller.",
+  "item.gtceuterminal.autocraft_confirm.message.multiblock_already_formed": "§aMultiblock is already formed!",
+  "item.gtceuterminal.autocraft_confirm.message.multiblock_built": "§aMultiblock built!",
+  "item.gtceuterminal.autocraft_confirm.message.build_failed_check_materials": "§cBuild failed — check materials.",
+  "item.gtceuterminal.autocraft_confirm.message.no_components_to_upgrade": "§cNo components to upgrade.",
+  "item.gtceuterminal.autocraft_confirm.message.upgrade_success_with_failed": "§aUpgraded %d component(s). §e(%d failed)",
+  "item.gtceuterminal.autocraft_confirm.message.upgrade_success_no_failed": "§aUpgraded %d component(s).",
+  "item.gtceuterminal.autocraft_confirm.message.upgrade_failed_check_materials": "§cUpgrade failed — check materials.",
+
+  "item.gtceuterminal.schematic_action.message.no_clipboard_to_save": "§eNo clipboard to save!",
+  "item.gtceuterminal.schematic_action.message.clipboard_empty": "§eClipboard is empty!",
+  "item.gtceuterminal.schematic_action.message.schematic_name_already_exists": "§cSchematic name already exists!",
+  "item.gtceuterminal.schematic_action.message.saved_schematic": "§aSaved schematic: %s",
+  "item.gtceuterminal.schematic_action.message.loaded_schematic": "§aLoaded schematic: %s",
+  "item.gtceuterminal.schematic_action.message.deleted_schematic": "§eDeleted schematic: %s",
+
+  "item.gtceuterminal.planner_build_all.message.disabled": "§c[GTCEu Terminals] Planner 'Build All' is disabled on this server.",
+  "item.gtceuterminal.planner_build_all.message.success_no_skipped": "§aPlaced %d blocks from %d structure(s).",
+  "item.gtceuterminal.planner_build_all.message.success_with_skipped": "§ePlaced %d blocks, skipped %d (missing items or occupied).",
+
+  "command.gtceuterminal.theme.must_be_player": "§cMust be run by a player.",
+  "command.gtceuterminal.theme.hold_terminal_item": "§cHold a GTCEu Terminal item in your main or offhand.",
+  "command.gtceuterminal.theme.set_default.success": "§aDefault theme saved! New players will use: Accent §r%s BG §r%s Panel §r%s",
+  "command.gtceuterminal.theme.reset_default.success": "§aDefault theme reset to built-in values.",
+  "command.gtceuterminal.theme.reload.success": "§adefault_theme.json reloaded from disk.",
+  "command.gtceuterminal.theme.info.with_wallpaper": "§7Default theme: §fAccent §r%s §fBG §r%s §fPanel §r%s §fWallpaper: §e%s",
+  "command.gtceuterminal.theme.info.no_wallpaper": "§7Default theme: §fAccent §r%s §fBG §r%s §fPanel §r%s",
+
   "item.gtceuterminal.tooltip.me_range.in_range": "  §b● In Range",
   "item.gtceuterminal.tooltip.me_range.out_of_range": "  §c● Out of Range",
 
   "item.gtceuterminal.multi_structure_manager.behavior.linked_to_me_network": "§a✓ Linked to ME Network",
+
+  "item.gtceuterminal.multi_structure_manager.behavior.cooldown_active": "§cCooldown active!",
+  "item.gtceuterminal.multi_structure_manager.behavior.multiblock_built": "§aMultiblock built!",
+  "item.gtceuterminal.multi_structure_manager.behavior.failed_to_build_check_materials": "§cFailed to build! Check materials.",
+  "item.gtceuterminal.multi_structure_manager.behavior.failed_to_build": "§cFailed to build!",
+  "item.gtceuterminal.multi_structure_manager.behavior.multiblock_already_formed": "§aMultiblock is already formed!",
+  "item.gtceuterminal.multi_structure_manager.behavior.nothing_to_build": "§eNothing to build — multiblock may already be complete.",
+  "item.gtceuterminal.multi_structure_manager.behavior.analysis_failed": "§cAnalysis failed!",
 
   "item.gtceuterminal.schematic_copier.failed_to_scan_multiblock": "§cFailed to scan multiblock!",
   "item.gtceuterminal.schematic_copier.multiblock_copied": "§aMultiblock copied! %d blocks",

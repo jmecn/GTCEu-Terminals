@@ -77,7 +77,12 @@ public class EnergyAnalyzerItem extends Item {
                     EnergyDataCollector.clearHistory(level, pos);
                     saveMachines(stack, machines);
                     player.displayClientMessage(
-                            Component.literal("§cUnlinked: §f" + machineType), true);
+                            Component.translatable(
+                                    "item.gtceuterminal.energy_analyzer.message.unlinked",
+                                    machineType
+                            ),
+                            true
+                    );
                     return InteractionResult.SUCCESS;
                 }
             }
@@ -86,14 +91,24 @@ public class EnergyAnalyzerItem extends Item {
             int max = ItemsConfig.getEAMaxLinkedMachines();
             if (machines.size() >= max) {
                 player.displayClientMessage(
-                        Component.literal("§cCannot link more than §f" + max + "§c machines. Unlink one first."), true);
+                        Component.translatable(
+                                "item.gtceuterminal.energy_analyzer.message.cannot_link_more",
+                                max
+                        ),
+                        true
+                );
                 return InteractionResult.FAIL;
             }
 
             // Check dimension allowed
             if (!ItemsConfig.isEADimensionAllowed(dimId)) {
                 player.displayClientMessage(
-                        Component.literal("§cDimension §f" + dimId + "§c is not allowed in config."), true);
+                        Component.translatable(
+                                "item.gtceuterminal.energy_analyzer.message.dimension_not_allowed",
+                                dimId
+                        ),
+                        true
+                );
                 return InteractionResult.FAIL;
             }
 
@@ -101,8 +116,12 @@ public class EnergyAnalyzerItem extends Item {
             machines.add(new LinkedMachineData(pos, dimId, "", machineType));
             saveMachines(stack, machines);
             player.displayClientMessage(
-                    Component.literal("§aLinked: §f" + machineType +
-                            " §7(" + machines.size() + "/" + max + ")"), true);
+                    Component.translatable(
+                            "item.gtceuterminal.energy_analyzer.message.linked",
+                            machineType, machines.size(), max
+                    ),
+                    true
+            );
             return InteractionResult.SUCCESS;
 
         } else {
@@ -114,7 +133,11 @@ public class EnergyAnalyzerItem extends Item {
             }
             if (idx < 0) {
                 player.displayClientMessage(
-                        Component.literal("§eThis machine is not linked. §7Shift+click to link it first."), true);
+                        Component.translatable(
+                                "item.gtceuterminal.energy_analyzer.message.machine_not_linked_prompt"
+                        ),
+                        true
+                );
                 return InteractionResult.SUCCESS;
             }
             // Request UI open — send index to open on that machine
@@ -135,7 +158,11 @@ public class EnergyAnalyzerItem extends Item {
         List<LinkedMachineData> machines = loadMachines(stack);
         if (machines.isEmpty()) {
             player.displayClientMessage(
-                    Component.literal("§eNo machines linked. §7Shift+click a GTCEu machine to link it."), true);
+                    Component.translatable(
+                            "item.gtceuterminal.energy_analyzer.message.no_machines_linked_air"
+                    ),
+                    true
+            );
             return InteractionResultHolder.success(stack);
         }
 
