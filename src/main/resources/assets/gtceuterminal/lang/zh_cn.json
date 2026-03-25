@@ -89,7 +89,7 @@
   "gui.gtceuterminal.schematic_interface.preview.rotation_hint": "§8使用鼠标滚轮旋转预览",
 
   "gui.gtceuterminal.schematic_interface.button.save": "§f§l保存",
-  "gui.gtceuterminal.schematic_interface.button.load": "§f§l载入",
+  "gui.gtceuterminal.schematic_interface.button.load": "§f§l加载",
   "gui.gtceuterminal.schematic_interface.button.delete": "§f§l删除",
   "gui.gtceuterminal.schematic_interface.button.close": "§7关闭",
 
@@ -99,7 +99,7 @@
   "gui.gtceuterminal.schematic_interface.chat.error.name_exists": "§c§l错误：§c结构名称已存在！",
   "gui.gtceuterminal.schematic_interface.chat.success.saved": "§a§l✓ §a已保存：§f%s",
   "gui.gtceuterminal.schematic_interface.chat.error.no_schematic_selected": "§c§l错误：§c未选择结构！",
-  "gui.gtceuterminal.schematic_interface.chat.success.loaded_to_clipboard": "§a§l✓ §a已载入到剪贴板：§f%s",
+  "gui.gtceuterminal.schematic_interface.chat.success.loaded_to_clipboard": "§a§l✓ §a已加载到剪贴板：§f%s",
   "gui.gtceuterminal.schematic_interface.chat.success.deleted": "§c§l✗ §c已删除：§f%s",
 
   "gui.gtceuterminal.schematic_interface.fallback.multiblock_structure": "多方块结构",
@@ -142,7 +142,7 @@
   "gui.gtceuterminal.energy_analyzer.recipe_time_left": "%s 后完成",
   "gui.gtceuterminal.energy_analyzer.recipe_finishing": "即将完成...",
 
-  "gui.gtceuterminal.energy_analyzer.hatches_label": "导管：",
+  "gui.gtceuterminal.energy_analyzer.hatches_label": "仓：",
   "gui.gtceuterminal.energy_analyzer.hatch_in": "输入",
   "gui.gtceuterminal.energy_analyzer.hatch_out": "输出",
   "gui.gtceuterminal.energy_analyzer.more_hatches": "  §8+ %s 个更多...",
@@ -184,8 +184,8 @@
   "gui.gtceuterminal.manager_settings.common.yes": "§a是",
   "gui.gtceuterminal.manager_settings.common.no": "§c否",
 
-  "gui.gtceuterminal.manager_settings.hatch_mode.label": "§7无机壳模式",
-  "gui.gtceuterminal.manager_settings.hatch_mode.tooltip": "§7在不使用 Hatch 的情况下建造",
+  "gui.gtceuterminal.manager_settings.hatch_mode.label": "§7无仓模式",
+  "gui.gtceuterminal.manager_settings.hatch_mode.tooltip": "§7在不使用仓的情况下建造",
   "gui.gtceuterminal.manager_settings.hatch_mode.hint_toggle": "§8← 点击切换",
 
   "gui.gtceuterminal.manager_settings.tier_mode.label": "§7等级模式",
