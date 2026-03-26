@@ -239,6 +239,8 @@
   "gui.gtceuterminal.energy_analyzer.hatches_label": "Hatches:",
   "gui.gtceuterminal.energy_analyzer.hatch_in": "IN",
   "gui.gtceuterminal.energy_analyzer.hatch_out": "OUT",
+  "gui.gtceuterminal.energy_analyzer.hatch_line": "  %s  %s  %dV%s",
+  "gui.gtceuterminal.energy_analyzer.hatch_amp_suffix": " %dA",
   "gui.gtceuterminal.energy_analyzer.more_hatches": "  §8+ %s more...",
 
   "gui.gtceuterminal.energy_analyzer.graph_header": "History (EU/s):",
