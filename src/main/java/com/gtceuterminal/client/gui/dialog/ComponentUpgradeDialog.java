@@ -1,6 +1,5 @@
 package com.gtceuterminal.client.gui.dialog;
 
-import com.gtceuterminal.common.theme.ItemTheme;
 import com.gtceuterminal.GTCEUTerminalMod;
 import com.gtceuterminal.client.gui.multiblock.ComponentDetailUI;
 import com.gtceuterminal.client.gui.widget.LDLMaterialListWidget;
@@ -15,6 +14,7 @@ import com.gtceuterminal.common.multiblock.ComponentType;
 import com.gtceuterminal.common.multiblock.MultiblockInfo;
 import com.gtceuterminal.common.network.CPacketComponentUpgrade;
 import com.gtceuterminal.common.network.TerminalNetwork;
+import com.gtceuterminal.common.theme.ItemTheme;
 import com.gtceuterminal.common.upgrade.UniversalUpgradeCatalog;
 import com.gtceuterminal.common.upgrade.UniversalUpgradeCatalogBuilder;
 
