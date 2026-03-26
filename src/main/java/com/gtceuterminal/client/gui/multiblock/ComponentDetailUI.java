@@ -1,12 +1,12 @@
 package com.gtceuterminal.client.gui.multiblock;
 
-import com.gtceuterminal.common.multiblock.ComponentType;
 import com.gtceuterminal.common.theme.ItemTheme;
 import com.gtceuterminal.GTCEUTerminalMod;
 import com.gtceuterminal.client.gui.dialog.ComponentUpgradeDialog;
 import com.gtceuterminal.client.gui.factory.MultiStructureManagerUIFactory;
 import com.gtceuterminal.common.multiblock.ComponentGroup;
 import com.gtceuterminal.common.multiblock.ComponentInfo;
+import com.gtceuterminal.common.multiblock.ComponentType;
 import com.gtceuterminal.common.multiblock.MultiblockInfo;
 
 import com.lowdragmc.lowdraglib.gui.modular.IUIHolder;
