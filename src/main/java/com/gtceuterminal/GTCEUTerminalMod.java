@@ -51,6 +51,8 @@ public class GTCEUTerminalMod {
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::clientSetup);
 
+        MinecraftForge.EVENT_BUS.register(this);
+
         // Guard: if the config file exists but is empty/truncated, delete it so Forge regenerates it
         try {
             Path configPath = FMLPaths.CONFIGDIR.get().resolve(ServerConfig.FILE_NAME);
@@ -123,6 +125,7 @@ public class GTCEUTerminalMod {
 
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
+        com.gtceuterminal.common.config.ItemsConfig.load();
         DefaultThemeConfig.reload();
     }
 }

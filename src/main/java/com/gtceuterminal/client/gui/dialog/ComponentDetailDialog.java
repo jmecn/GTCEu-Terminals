@@ -30,47 +30,58 @@ import java.util.List;
 
 public class ComponentDetailDialog extends DialogWidget {
 
-    private static final int dialogW = 400;
-    private static final int dialogH = 350;
-    private static final int dialogS = 10;
-    private static final int UPGRADE_dialogW = 400;
+    // ── Dimensions ────────────────────────────────────────────────────────────
+    private static final int DIALOG_W  = 460;
+    private static final int DIALOG_H  = 390;
+    private static final int HEADER_H  = 28;
+    private static final int INFO_H    = 32;
+    private static final int ENTRY_H   = 40;
+    private static final int ENTRY_GAP = 4;
+    private static final int PAD       = 10;
 
-    private ItemTheme theme;
-    private int COLOR_BG_DARK = 0xFF1A1A1A;
-    private int COLOR_BG_MEDIUM = 0xFF2B2B2B;
-    private int COLOR_BG_LIGHT = 0xFF3F3F3F;
-    private int COLOR_BORDER_LIGHT = 0xFF5A5A5A;
+    // ── Colors ────────────────────────────────────────────────────────────────
+    private int COLOR_BG_DARK;
+    private int COLOR_BG_MEDIUM;
+    private int COLOR_BG_LIGHT;
+    private int COLOR_BORDER_LIGHT;
     private static final int COLOR_BORDER_DARK = 0xFF0A0A0A;
-    private static final int COLOR_TEXT_WHITE = 0xFFFFFFFF;
-    private static final int COLOR_TEXT_GRAY = 0xFFAAAAAA;
-    private static final int COLOR_SUCCESS = 0xFF00FF00;
+    private static final int COLOR_TEXT_WHITE  = 0xFFFFFFFF;
+    private static final int COLOR_TEXT_GRAY   = 0xFFAAAAAA;
+    private static final int COLOR_HOVER       = 0x22FFFFFF;
 
+    // ── State ─────────────────────────────────────────────────────────────────
+    private ItemTheme theme;
     private final Player player;
     private final MultiblockInfo multiblock;
     private final Runnable onClose;
-    private int W = dialogW;
-    private int H = dialogH;
+    private int W = DIALOG_W;
+    private int H = DIALOG_H;
 
+    // ── Constructors ──────────────────────────────────────────────────────────
     public ComponentDetailDialog(WidgetGroup parent, Player player, MultiblockInfo multiblock) {
-        this(parent, player, multiblock, null);
+        this(parent, player, multiblock, null, null);
     }
 
     public ComponentDetailDialog(WidgetGroup parent, Player player, MultiblockInfo multiblock, Runnable onClose) {
         this(parent, player, multiblock, onClose, null);
     }
 
-    public ComponentDetailDialog(WidgetGroup parent, Player player, MultiblockInfo multiblock, Runnable onClose, ItemTheme passedTheme) {
+    public ComponentDetailDialog(WidgetGroup parent, Player player, MultiblockInfo multiblock,
+                                 Runnable onClose, ItemTheme passedTheme) {
         super(parent, true);
-        this.player = player;
+        this.player    = player;
         this.multiblock = multiblock;
-        this.onClose = onClose;
-        this.theme = passedTheme != null ? passedTheme : ItemTheme.loadFromPlayer(player);
-        this.COLOR_BG_DARK      = theme.bgColor;
-        this.COLOR_BG_MEDIUM    = theme.panelColor;
-        this.COLOR_BG_LIGHT     = theme.isNativeStyle() ? 0xFF3A3A3A : theme.accent(0xAA);
-        this.COLOR_BORDER_LIGHT = theme.isNativeStyle() ? 0xFF555555 : theme.accent(0xFF);
-
+        this.onClose   = onClose;
+        this.theme     = passedTheme != null ? passedTheme : ItemTheme.loadFromPlayer(player);
+        applyTheme();
         initDialog();
+    }
+
+    private void applyTheme() {
+        COLOR_BG_DARK      = theme.bgColor;
+        COLOR_BG_MEDIUM    = theme.panelColor;
+        COLOR_BG_LIGHT     = theme.isNativeStyle() ? 0xFF3A3A3A : theme.accent(0xAA);
+        COLOR_BORDER_LIGHT = theme.isNativeStyle() ? 0xFF555555 : theme.accent(0xFF);
     }
 
     @Override
@@ -81,293 +92,276 @@ public class ComponentDetailDialog extends DialogWidget {
             }
         }
         super.close();
-        if (onClose != null) {
-            onClose.run();
-        }
+        if (onClose != null) onClose.run();
     }
 
-    private String getDisplayMultiblockName() {
-        String raw = multiblock.getName();
-        if (raw == null || raw.isEmpty()) return Component.translatable("gui.gtceuterminal.component_detail_dialog.unknown_multiblock").getString();
-        if (!raw.contains(" ") && raw.contains(".")) {
-            String localized = Component.translatable(raw).getString();
-            if (localized != null && !localized.isEmpty()) return localized;
-        }
-        return raw;
-    }
-
+    // ── Layout init ───────────────────────────────────────────────────────────
     private void initDialog() {
         var mc = Minecraft.getInstance();
-        int sw = mc.screen != null ? mc.screen.width : mc.getWindow().getGuiScaledWidth();
+        int sw = mc.screen != null ? mc.screen.width  : mc.getWindow().getGuiScaledWidth();
         int sh = mc.screen != null ? mc.screen.height : mc.getWindow().getGuiScaledHeight();
 
-        int margin = 10;
+        int margin   = 10;
+        int maxW     = sw - margin * 2;
+        int maxH     = sh - margin * 2;
+        int contentW = DIALOG_W;
+        int contentH = DIALOG_H;
+        int viewW    = Math.min(contentW, maxW);
+        int viewH    = Math.min(contentH, maxH);
 
-        int maxW = sw - margin * 2;
-        int maxH = sh - margin * 2;
+        int screenX  = Mth.clamp((sw - viewW) / 2, margin, sw - viewW - margin);
+        int screenY  = Mth.clamp((sh - viewH) / 2, margin, sh - viewH - margin);
+        Position abs = parent.getPosition();
+        int x = screenX - abs.x;
+        int y = screenY - abs.y;
 
-        int contentW = dialogW;
-        int contentH = dialogH;
+        this.W = viewW;
+        this.H = viewH;
+        setSize(new Size(viewW, viewH));
+        setSelfPosition(new Position(x, y));
+        setBackground(theme.backgroundTexture());
 
-        int viewportW = Math.min(contentW, maxW);
-        int viewportH = Math.min(contentH, maxH);
-
-        int screenX = (sw - viewportW) / 2;
-        int screenY = (sh - viewportH) / 2;
-
-        screenX = Mth.clamp(screenX, margin, sw - viewportW - margin);
-        screenY = Mth.clamp(screenY, margin, sh - viewportH - margin);
-
-        Position parentAbsPos = parent.getPosition();
-        int x = screenX - parentAbsPos.x;
-        int y = screenY - parentAbsPos.y;
+        // Content — may be larger than viewport if screen is tiny
+        WidgetGroup content = buildContent(contentW, contentH);
 
         if (contentW <= maxW && contentH <= maxH) {
-            this.W = contentW;
-            this.H = contentH;
-            setSize(new Size(contentW, contentH));
-            setSelfPosition(new Position(x, y));
-            setBackground(theme.backgroundTexture());
-
-            if (!theme.isNativeStyle()) {
-                addWidget(new ImageWidget(0, 0, contentW, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-                addWidget(new ImageWidget(0, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-                addWidget(new ImageWidget(contentW - 2, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_DARK)));
-                addWidget(new ImageWidget(0, contentH - 2, contentW, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
+            // Fits — add directly
+            for (Widget w : new ArrayList<>(content.widgets)) {
+                addWidget(w);
             }
-
-            addWidget(createHeader());
-            addWidget(createInfoPanel());
-            addWidget(createComponentGroupsList());
-            addWidget(createCloseButton());
-
         } else {
-            this.W = viewportW;
-            this.H = viewportH;
-            setSize(new Size(viewportW, viewportH));
-            setSelfPosition(new Position(x, y));
-            setBackground(theme.backgroundTexture());
-
-            WidgetGroup content = new WidgetGroup(0, 0, contentW, contentH);
-            content.setBackground(theme.backgroundTexture());
-
-            content.addWidget(new ImageWidget(0, 0, contentW, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-            content.addWidget(new ImageWidget(0, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-            content.addWidget(new ImageWidget(contentW - 2, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_DARK)));
-            content.addWidget(new ImageWidget(0, contentH - 2, contentW, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
-
-            content.addWidget(createHeader());
-            content.addWidget(createInfoPanel());
-            content.addWidget(createComponentGroupsList());
-            content.addWidget(createCloseButton());
-
+            // Needs scroll wrapper
             DraggableScrollableWidgetGroup viewport =
-                    new DraggableScrollableWidgetGroup(0, 0, viewportW, viewportH);
+                    new DraggableScrollableWidgetGroup(0, 0, viewW, viewH);
             viewport.setYScrollBarWidth(8);
             viewport.setYBarStyle(
                     new ColorRectTexture(COLOR_BORDER_DARK),
-                    new ColorRectTexture(COLOR_BORDER_LIGHT)
-            );
+                    new ColorRectTexture(COLOR_BORDER_LIGHT));
             viewport.addWidget(content);
-
             addWidget(viewport);
         }
     }
 
-    private WidgetGroup createHeader() {
-        WidgetGroup header = new WidgetGroup(2, 2, W - 4, 26);
-        header.setBackground(theme.panelTexture());
+    private WidgetGroup buildContent(int cW, int cH) {
+        WidgetGroup root = new WidgetGroup(0, 0, cW, cH);
+        root.setBackground(theme.backgroundTexture());
 
-        String title = Component.translatable(
-                "gui.gtceuterminal.component_detail_dialog.header.title",
-                getDisplayMultiblockName()
-        ).getString();
-        LabelWidget titleLabel = new LabelWidget(10, 8, title);
-        titleLabel.setTextColor(COLOR_TEXT_WHITE);
-        header.addWidget(titleLabel);
+        // Outer border
+        if (!theme.isNativeStyle()) {
+            root.addWidget(new ImageWidget(0,      0,      cW, 2,  new ColorRectTexture(COLOR_BORDER_LIGHT)));
+            root.addWidget(new ImageWidget(0,      0,      2,  cH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+            root.addWidget(new ImageWidget(cW - 2, 0,      2,  cH, new ColorRectTexture(COLOR_BORDER_DARK)));
+            root.addWidget(new ImageWidget(0,      cH - 2, cW, 2,  new ColorRectTexture(COLOR_BORDER_DARK)));
+        }
+
+        root.addWidget(buildHeader(cW));
+        root.addWidget(buildInfoBar(cW));
+        root.addWidget(buildGroupList(cW, cH));
+
+        return root;
+    }
+
+    // ── Header ────────────────────────────────────────────────────────────────
+    private WidgetGroup buildHeader(int cW) {
+        WidgetGroup header = new WidgetGroup(2, 2, cW - 4, HEADER_H);
+        header.setBackground(theme.headerTexture());
+
+        // Multiblock name (resolved from translation key)
+        String name = resolveDisplayName();
+        LabelWidget title = new LabelWidget(10, 9, "§f" + name);
+        title.setTextColor(COLOR_TEXT_WHITE);
+        header.addWidget(title);
+
+        // ✕ Close button — right side of header
+        ButtonWidget closeBtn = new ButtonWidget(cW - 30, 4, 22, 20,
+                new GuiTextureGroup(
+                        new ColorRectTexture(COLOR_BG_MEDIUM),
+                        new ColorBorderTexture(1, COLOR_BORDER_LIGHT)),
+                cd -> close());
+        closeBtn.setButtonTexture(
+                new TextTexture("§c✕").setWidth(22).setType(TextTexture.TextType.NORMAL));
+        closeBtn.setHoverTexture(new GuiTextureGroup(
+                new ColorRectTexture(0xFFAA0000),
+                new ColorBorderTexture(1, COLOR_TEXT_WHITE)));
+        header.addWidget(closeBtn);
 
         return header;
     }
 
-    private WidgetGroup createInfoPanel() {
-        WidgetGroup infoPanel = new WidgetGroup(10, 32, W - 20, 46);
-        infoPanel.setBackground(theme.panelTexture());
-
-        int yPos = 6;
-
-        LabelWidget nameLabel = new LabelWidget(10, yPos,
-                Component.translatable(
-                        "gui.gtceuterminal.component_detail_dialog.info.multiblock",
-                        getDisplayMultiblockName()
-                ).getString());
-        nameLabel.setTextColor(COLOR_TEXT_WHITE);
-        infoPanel.addWidget(nameLabel);
-
-        yPos += 13;
-
-        LabelWidget tierLabel = new LabelWidget(10, yPos,
-                Component.translatable(
-                        "gui.gtceuterminal.component_detail_dialog.info.tier",
-                        multiblock.getTierName()
-                ).getString());
-        tierLabel.setTextColor(COLOR_TEXT_WHITE);
-        infoPanel.addWidget(tierLabel);
-
-        LabelWidget distLabel = new LabelWidget(220, yPos,
-                Component.translatable(
-                        "gui.gtceuterminal.component_detail_dialog.info.distance",
-                        multiblock.getDistanceString()
-                ).getString());
-        distLabel.setTextColor(COLOR_TEXT_WHITE);
-        infoPanel.addWidget(distLabel);
-
-        yPos += 13;
+    // ── Info bar ──────────────────────────────────────────────────────────────
+    private WidgetGroup buildInfoBar(int cW) {
+        int y = 2 + HEADER_H + 3;
+        WidgetGroup bar = new WidgetGroup(PAD, y, cW - PAD * 2, INFO_H);
+        bar.setBackground(theme.panelTexture());
 
         List<ComponentGroup> groups = multiblock.getGroupedComponents();
         int totalComponents = multiblock.getComponents().size();
-        LabelWidget countLabel = new LabelWidget(10, yPos,
-                Component.translatable(
-                        "gui.gtceuterminal.component_detail_dialog.info.components",
-                        totalComponents,
-                        groups.size()
-                ).getString());
-        countLabel.setTextColor(COLOR_TEXT_WHITE);
-        infoPanel.addWidget(countLabel);
 
-        return infoPanel;
+        String text = Component.translatable(
+                "gui.gtceuterminal.component_detail_dialog.info.summary",
+                multiblock.getTierName(),
+                multiblock.getDistanceString(),
+                totalComponents,
+                groups.size()
+        ).getString();
+
+        LabelWidget lbl = new LabelWidget(10, 10, text);
+        lbl.setTextColor(COLOR_TEXT_GRAY);
+        bar.addWidget(lbl);
+
+        return bar;
     }
 
-    private WidgetGroup createComponentGroupsList() {
-        int listY = 82;
-        int bottomPad = 10;
-        int listH = H - listY - bottomPad;
+    // ── Component groups list ─────────────────────────────────────────────────
+    private WidgetGroup buildGroupList(int cW, int cH) {
+        int listY = 2 + HEADER_H + 3 + INFO_H + 4;
+        int listH = cH - listY - 8;
 
-        if (listH < 130) listH = 130;
-
-        WidgetGroup listPanel = new WidgetGroup(10, listY, W - 20, listH);
-        listPanel.setBackground(new GuiTextureGroup(
+        WidgetGroup panel = new WidgetGroup(PAD, listY, cW - PAD * 2, listH);
+        panel.setBackground(new GuiTextureGroup(
                 new ColorRectTexture(COLOR_BG_DARK),
-                new ColorBorderTexture(1, COLOR_BORDER_DARK)
-        ));
+                new ColorBorderTexture(1, COLOR_BORDER_DARK)));
 
-        LabelWidget listLabel = new LabelWidget(10, 4,
+        // "Components" section label
+        LabelWidget sectionLabel = new LabelWidget(10, 5,
                 Component.translatable("gui.gtceuterminal.component_detail_dialog.list.header").getString());
-        listLabel.setTextColor(COLOR_TEXT_WHITE);
-        listPanel.addWidget(listLabel);
+        sectionLabel.setTextColor(COLOR_TEXT_WHITE);
+        panel.addWidget(sectionLabel);
 
-        int scrollX = 5;
-        int scrollY = 22;
-        int scrollW = (W - 20) - 15;
-        int scrollH = listH - 30;
-
-        DraggableScrollableWidgetGroup scrollWidget =
-                new DraggableScrollableWidgetGroup(scrollX, scrollY, scrollW, scrollH);
-
-        scrollWidget.setYScrollBarWidth(8);
-        scrollWidget.setYBarStyle(
+        int scrollW = (cW - PAD * 2) - 14;
+        int scrollH = listH - 22;
+        DraggableScrollableWidgetGroup scroll =
+                new DraggableScrollableWidgetGroup(4, 20, scrollW, scrollH);
+        scroll.setYScrollBarWidth(8);
+        scroll.setYBarStyle(
                 new ColorRectTexture(COLOR_BORDER_DARK),
-                new ColorRectTexture(COLOR_BORDER_LIGHT)
-        );
+                new ColorRectTexture(COLOR_BORDER_LIGHT));
 
         List<ComponentGroup> groups = multiblock.getGroupedComponents();
         int yPos = 0;
-
         for (ComponentGroup group : groups) {
-            scrollWidget.addWidget(createComponentGroupEntry(group, yPos, scrollW));
-            yPos += 42;
+            scroll.addWidget(buildEntry(group, yPos, scrollW - 10));
+            yPos += ENTRY_H + ENTRY_GAP;
         }
 
-        listPanel.addWidget(scrollWidget);
-        return listPanel;
+        panel.addWidget(scroll);
+        return panel;
     }
 
-    // Creates a single entry for a component group
-    private WidgetGroup createComponentGroupEntry(ComponentGroup group, int yPos, int entryW) {
-        WidgetGroup entry = new WidgetGroup(0, yPos, entryW, 38);
+    // ── Single component group entry ──────────────────────────────────────────
+    private WidgetGroup buildEntry(ComponentGroup group, int yPos, int entryW) {
+        WidgetGroup entry = new WidgetGroup(0, yPos, entryW, ENTRY_H);
         entry.setBackground(theme.panelTexture());
 
         ComponentInfo rep = group.getRepresentative();
-        if (rep != null) {
-            if (!rep.getPossibleUpgradeTiers().isEmpty()) {
-                ButtonWidget clickableArea = new ButtonWidget(
-                        0, 0, entryW, 38,
-                        new ColorRectTexture(0x00000000),
-                        cd -> openUpgradeDialog(group)
-                );
-                clickableArea.setHoverTexture(new ColorRectTexture(0x22FFFFFF));
-                entry.addWidget(clickableArea);
-            }
+        if (rep == null) return entry;
 
-            entry.addWidget(new ImageWidget(6, 14, 7, 7, new ColorRectTexture(COLOR_SUCCESS)));
+        boolean upgradeable = !rep.getPossibleUpgradeTiers().isEmpty();
 
-            String typeName = group.getType().getDisplayNameComponent().getString();
-            LabelWidget typeLabel = new LabelWidget(18, 4, "§f" + typeName);
-            typeLabel.setTextColor(COLOR_TEXT_WHITE);
-            entry.addWidget(typeLabel);
-
-            LabelWidget countLabel = new LabelWidget(18, 16,
-                    Component.translatable(
-                            "gui.gtceuterminal.component_detail_dialog.entry.count",
-                            group.getCount()
-                    ).getString());
-            countLabel.setTextColor(COLOR_TEXT_GRAY);
-            entry.addWidget(countLabel);
-
-            String tierText = Component.translatable(
-                    "gui.gtceuterminal.component_detail_dialog.entry.tier",
-                    tierNameForList(group, rep)
-            ).getString();
-            if (!rep.getPossibleUpgradeTiers().isEmpty()) tierText += " §a→";
-
-            LabelWidget tierLabel = new LabelWidget(Math.max(18, entryW - 130), 16, tierText);
-            tierLabel.setTextColor(COLOR_TEXT_GRAY);
-            entry.addWidget(tierLabel);
+        // ── Clickable overlay ─────────────────────────────────────────────────
+        if (upgradeable) {
+            ButtonWidget clickArea = new ButtonWidget(0, 0, entryW, ENTRY_H,
+                    new ColorRectTexture(0x00000000),
+                    cd -> openUpgradeDialog(group));
+            clickArea.setHoverTexture(new ColorRectTexture(COLOR_HOVER));
+            entry.addWidget(clickArea);
         }
+
+        // ── Type color dot ────────────────────────────────────────────────────
+        int dotColor = 0xFF000000 | group.getType().getColor();
+        entry.addWidget(new ImageWidget(8, 16, 8, 8, new ColorRectTexture(dotColor)));
+
+        // ── Type name (top line) ──────────────────────────────────────────────
+        String typeName = group.getType().getDisplayNameComponent().getString();
+        LabelWidget typeLabel = new LabelWidget(22, 6, "§f" + typeName);
+        typeLabel.setTextColor(COLOR_TEXT_WHITE);
+        entry.addWidget(typeLabel);
+
+        // ── Block subtype (bottom line, gray) ─────────────────────────────────
+        String blockSub = formatBlockSubtype(group.getBlockName());
+        LabelWidget subLabel = new LabelWidget(22, 20, "§7" + blockSub);
+        subLabel.setTextColor(COLOR_TEXT_GRAY);
+        entry.addWidget(subLabel);
+
+        // ── Count badge ───────────────────────────────────────────────────────
+        String countText = "×" + group.getCount();
+        int badgeW = 72;
+        int countX = entryW - 80;
+        LabelWidget countLabel = new LabelWidget(countX, 6, "§e" + countText);
+        countLabel.setTextColor(COLOR_TEXT_WHITE);
+        entry.addWidget(countLabel);
+
+        // ── Tier label ────────────────────────────────────────────────────────
+        String tierText = Component.translatable(
+                "gui.gtceuterminal.component_detail_dialog.entry.tier",
+                tierNameForList(group, rep)).getString();
+        LabelWidget tierLabel = new LabelWidget(countX, 20, tierText);
+        tierLabel.setTextColor(COLOR_TEXT_GRAY);
+        entry.addWidget(tierLabel);
 
         return entry;
     }
 
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    private String resolveDisplayName() {
+        String raw = multiblock.getName();
+        if (raw == null || raw.isEmpty())
+            return Component.translatable("gui.gtceuterminal.component_detail_dialog.unknown_multiblock").getString();
+        String resolved = Component.translatable(raw).getString();
+        if (resolved.equals(raw) && raw.contains(".")) {
+            String last = raw.substring(raw.lastIndexOf('.') + 1);
+            resolved = Character.toUpperCase(last.charAt(0)) + last.substring(1).replace('_', ' ');
+        }
+        return resolved;
+    }
+
+    private static String formatBlockSubtype(String blockName) {
+        if (blockName == null || blockName.isBlank()) return "";
+        String s = blockName;
+
+        // Strip common prefixes to get at the tier/amperage suffix
+        for (String prefix : new String[]{"energy_hatch_", "input_hatch_", "output_hatch_",
+                "input_bus_", "output_bus_", "dynamo_hatch_"}) {
+            if (s.startsWith(prefix)) { s = s.substring(prefix.length()); break; }
+        }
+
+        // Uppercase tier names and amperage
+        String[] parts = s.split("_");
+        StringBuilder sb = new StringBuilder();
+        for (String p : parts) {
+            if (p.isBlank()) continue;
+            if (sb.length() > 0) sb.append(' ');
+            if (p.matches("(?i)ulv|lv|mv|hv|ev|iv|luv|zpm|uv|uhv|uev|uiv|uxv|opv|max")) {
+                sb.append(p.toUpperCase(java.util.Locale.ROOT));
+            } else if (p.matches("\\d+a")) {
+                sb.append(p.toUpperCase(java.util.Locale.ROOT));
+            } else {
+                sb.append(Character.toUpperCase(p.charAt(0))).append(p.substring(1));
+            }
+        }
+        String result = sb.toString();
+        return result.length() > 24 ? result.substring(0, 23) + "…" : result;
+    }
+
     private static String tierNameForList(ComponentGroup group, ComponentInfo rep) {
         try {
-            if (group != null && group.getType() == ComponentType.COIL) {
+            if (group.getType() == ComponentType.COIL) {
                 return ComponentType.getCoilTierName(rep.getTier());
             }
         } catch (Throwable ignored) {}
-        String s = rep != null ? rep.getTierName() : "";
+        String s = rep.getTierName();
         return s != null ? s : "";
     }
 
-    private ButtonWidget createCloseButton() {
-        ButtonWidget closeBtn = new ButtonWidget(
-                W - 28, 4, 22, 22,
-                new GuiTextureGroup(
-                        new ColorRectTexture(COLOR_BG_MEDIUM),
-                        new ColorBorderTexture(1, COLOR_BORDER_LIGHT)
-                ),
-                cd -> close()
-        );
-
-        closeBtn.setButtonTexture(new TextTexture("§cX")
-                .setWidth(22)
-                .setType(TextTexture.TextType.NORMAL));
-
-        closeBtn.setHoverTexture(new GuiTextureGroup(
-                new ColorRectTexture(0xFFFF0000),
-                new ColorBorderTexture(1, COLOR_TEXT_WHITE)
-        ));
-
-        return closeBtn;
-    }
-
     private void openUpgradeDialog(ComponentGroup group) {
-        ComponentUpgradeDialog dialog = new ComponentUpgradeDialog(
+        if (this.gui == null || this.gui.mainGroup == null) return;
+        new ComponentUpgradeDialog(
                 this.gui.mainGroup,
                 null,
                 this,
                 group,
                 multiblock,
                 player,
-                this.theme
-        );
+                this.theme);
     }
 }

@@ -2,13 +2,15 @@ package com.gtceuterminal.client.gui.multiblock;
 
 import com.gtceuterminal.common.ae2.MENetworkScanner;
 import com.gtceuterminal.common.theme.ItemTheme;
-import com.gtceuterminal.GTCEUTerminalMod;
 import com.gtceuterminal.client.gui.factory.MultiStructureManagerUIFactory;
 
 import com.lowdragmc.lowdraglib.gui.factory.HeldItemUIFactory;
 import com.lowdragmc.lowdraglib.gui.modular.IUIHolder;
 import com.lowdragmc.lowdraglib.gui.modular.ModularUI;
+import com.lowdragmc.lowdraglib.gui.texture.ColorBorderTexture;
 import com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture;
+import com.lowdragmc.lowdraglib.gui.texture.GuiTextureGroup;
+import com.lowdragmc.lowdraglib.gui.texture.TextTexture;
 import com.lowdragmc.lowdraglib.gui.widget.*;
 import com.lowdragmc.lowdraglib.utils.Size;
 
@@ -19,23 +21,36 @@ import net.minecraft.world.item.ItemStack;
 
 public class ManagerSettingsUI {
 
-    private static final int GUI_WIDTH  = 200;
-    private static final int GUI_HEIGHT = 175;
+    // ── Dimensions ────────────────────────────────────────────────────────────
+    private static final int GUI_W    = 280;
+    private static final int GUI_H    = 215;
+    private static final int HEADER_H = 28;
+    private static final int PAD      = 8;
+    private static final int ROW_H    = 32; // height per setting row
+    private static final int CTL_W    = 56; // control (button / input) width
+    private static final int CTL_H    = 18;
 
-    private int COLOR_BG_DARK      = 0xFF1A1A1A;
-    private int COLOR_BG_MEDIUM    = 0xFF2B2B2B;
-    private int COLOR_BG_LIGHT     = 0xFF3F3F3F;
-    private int COLOR_BORDER_LIGHT = 0xFF5A5A5A;
+    // ── Colors ────────────────────────────────────────────────────────────────
+    private int COLOR_BG_DARK;
+    private int COLOR_BG_MEDIUM;
+    private int COLOR_BG_LIGHT;
+    private int COLOR_BORDER_LIGHT;
     private static final int COLOR_BORDER_DARK = 0xFF0A0A0A;
     private static final int COLOR_TEXT_WHITE  = 0xFFFFFFFF;
     private static final int COLOR_TEXT_GRAY   = 0xFFAAAAAA;
+    private static final int COLOR_HINT        = 0xFF888888;
+    private static final int COLOR_ON          = 0xFF1A4A1A;
+    private static final int COLOR_ON_BORDER   = 0xFF00CC00;
+    private static final int COLOR_OFF         = 0xFF3A1A1A;
+    private static final int COLOR_OFF_BORDER  = 0xFF884444;
 
-    private ItemTheme theme;
-    private final IUIHolder uiHolder;   // either SettingsHolder or HeldItemHolder
-    private final ItemStack itemStack;  // the actual item — all logic reads this directly
-    private final Player player;
+    // ── State ─────────────────────────────────────────────────────────────────
+    private ItemTheme    theme;
+    private final IUIHolder  uiHolder;
+    private final ItemStack  itemStack;
+    private final Player     player;
 
-    // ── Constructor B: HeldItemUIFactory path (kept for compat) ─────────────
+    // ── Constructors ──────────────────────────────────────────────────────────
     public ManagerSettingsUI(HeldItemUIFactory.HeldItemHolder heldHolder) {
         this.uiHolder  = heldHolder;
         this.itemStack = heldHolder.held;
@@ -43,7 +58,6 @@ public class ManagerSettingsUI {
         applyTheme();
     }
 
-    // ── Constructor C: MultiStructureManagerUIFactory path ───────────────────
     public ManagerSettingsUI(MultiStructureManagerUIFactory.Holder holder, Player player) {
         this.uiHolder  = holder;
         this.itemStack = holder.getTerminalItem();
@@ -52,120 +66,184 @@ public class ManagerSettingsUI {
     }
 
     private void applyTheme() {
-        this.theme          = ItemTheme.load(itemStack);
-        COLOR_BG_DARK       = theme.bgColor;
-        COLOR_BG_MEDIUM     = theme.panelColor;
-        COLOR_BG_LIGHT      = theme.isNativeStyle() ? 0xFF3A3A3A : theme.accent(0xAA);
-        COLOR_BORDER_LIGHT  = theme.isNativeStyle() ? 0xFF555555 : theme.accent(0xFF);
+        this.theme         = ItemTheme.load(itemStack);
+        COLOR_BG_DARK      = theme.bgColor;
+        COLOR_BG_MEDIUM    = theme.panelColor;
+        COLOR_BG_LIGHT     = theme.isNativeStyle() ? 0xFF3A3A3A : theme.accent(0xAA);
+        COLOR_BORDER_LIGHT = theme.isNativeStyle() ? 0xFF555555 : theme.accent(0xFF);
     }
 
+    // ── UI construction ───────────────────────────────────────────────────────
     public ModularUI createUI() {
-        WidgetGroup mainGroup = new WidgetGroup(0, 0, GUI_WIDTH, GUI_HEIGHT);
-        mainGroup.setBackground(theme.backgroundTexture());
+        WidgetGroup root = new WidgetGroup(0, 0, GUI_W, GUI_H);
+        root.setBackground(theme.backgroundTexture());
 
-        mainGroup.addWidget(new ImageWidget(0, 0, GUI_WIDTH, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-        mainGroup.addWidget(new ImageWidget(0, 0, 2, GUI_HEIGHT, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-        mainGroup.addWidget(new ImageWidget(GUI_WIDTH - 2, 0, 2, GUI_HEIGHT, new ColorRectTexture(COLOR_BORDER_DARK)));
-        mainGroup.addWidget(new ImageWidget(0, GUI_HEIGHT - 2, GUI_WIDTH, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
+        // Outer border
+        root.addWidget(new ImageWidget(0,        0,        GUI_W, 2,     new ColorRectTexture(COLOR_BORDER_LIGHT)));
+        root.addWidget(new ImageWidget(0,        0,        2,     GUI_H, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+        root.addWidget(new ImageWidget(GUI_W - 2, 0,       2,     GUI_H, new ColorRectTexture(COLOR_BORDER_DARK)));
+        root.addWidget(new ImageWidget(0,        GUI_H - 2, GUI_W, 2,   new ColorRectTexture(COLOR_BORDER_DARK)));
 
-        LabelWidget title = new LabelWidget(GUI_WIDTH / 2 - 60, 8,
-                Component.translatable("gui.gtceuterminal.manager_settings.title").getString());
-        title.setTextColor(COLOR_TEXT_WHITE);
-        mainGroup.addWidget(title);
+        root.addWidget(buildHeader());
+        root.addWidget(buildSettingsPanel());
 
-        mainGroup.addWidget(createSettingsPanel());
-
-        ModularUI gui = new ModularUI(new Size(GUI_WIDTH, GUI_HEIGHT), uiHolder, player);
-        gui.widget(mainGroup);
+        ModularUI gui = new ModularUI(new Size(GUI_W, GUI_H), uiHolder, player);
+        gui.widget(root);
         gui.background(theme.modularUIBackground());
         return gui;
     }
 
-    private WidgetGroup createSettingsPanel() {
-        WidgetGroup panel = new WidgetGroup(8, 30, GUI_WIDTH - 16, GUI_HEIGHT - 40);
+    // ── Header ────────────────────────────────────────────────────────────────
+    private WidgetGroup buildHeader() {
+        WidgetGroup header = new WidgetGroup(2, 2, GUI_W - 4, HEADER_H);
+        header.setBackground(theme.headerTexture());
+
+        LabelWidget title = new LabelWidget(10, 9,
+                Component.translatable("gui.gtceuterminal.manager_settings.title").getString());
+        title.setTextColor(COLOR_TEXT_WHITE);
+        header.addWidget(title);
+
+        return header;
+    }
+
+    // ── Settings panel ────────────────────────────────────────────────────────
+    private WidgetGroup buildSettingsPanel() {
+        int panelY = 2 + HEADER_H + 3;
+        int panelH = GUI_H - panelY - 4;
+        WidgetGroup panel = new WidgetGroup(PAD, panelY, GUI_W - PAD * 2, panelH);
         panel.setBackground(theme.panelTexture());
 
-        int yPos = 8;
-        final String yesStr = Component.translatable("gui.gtceuterminal.manager_settings.common.yes").getString();
-        final String noStr  = Component.translatable("gui.gtceuterminal.manager_settings.common.no").getString();
+        int y = 8;
+        int innerW = GUI_W - PAD * 2;
 
         // 1. No Hatch Mode
-        LabelWidget hatchLabel = new LabelWidget(8, yPos,
-                Component.translatable("gui.gtceuterminal.manager_settings.hatch_mode.label").getString());
-        panel.addWidget(hatchLabel);
-        ButtonWidget hatchToggle = new ButtonWidget(GUI_WIDTH - 70, yPos - 2, 50, 16,
-                new ColorRectTexture(COLOR_BG_DARK), cd -> toggleNoHatchMode());
-        hatchToggle.setHoverTexture(new ColorRectTexture(COLOR_BG_LIGHT));
-        hatchLabel.setHoverTooltips(Component.translatable("gui.gtceuterminal.manager_settings.hatch_mode.tooltip"));
-        panel.addWidget(hatchToggle);
-        panel.addWidget(new LabelWidget(GUI_WIDTH - 54, yPos + 2,
-                () -> getNoHatchMode() == 1 ? yesStr : noStr));
-        panel.addWidget(new LabelWidget(8, yPos + 14,
-                Component.translatable("gui.gtceuterminal.manager_settings.hatch_mode.hint_toggle").getString())
-                .setTextColor(0xFF666666));
-        yPos += 30;
+        y = addToggleRow(panel, y, innerW,
+                Component.translatable("gui.gtceuterminal.manager_settings.hatch_mode.label").getString(),
+                Component.translatable("gui.gtceuterminal.manager_settings.hatch_mode.hint_toggle").getString(),
+                Component.translatable("gui.gtceuterminal.manager_settings.hatch_mode.tooltip").getString(),
+                () -> getNoHatchMode() == 1,
+                () -> toggleNoHatchMode());
 
         // 2. Tier Mode
-        LabelWidget tierLabel = new LabelWidget(8, yPos,
-                Component.translatable("gui.gtceuterminal.manager_settings.tier_mode.label").getString());
-        tierLabel.setTextColor(COLOR_TEXT_GRAY);
-        panel.addWidget(tierLabel);
-        TextFieldWidget tierInput = new TextFieldWidget(GUI_WIDTH - 70, yPos - 2, 50, 16,
+        y = addInputRow(panel, y, innerW,
+                Component.translatable("gui.gtceuterminal.manager_settings.tier_mode.label").getString(),
+                Component.translatable("gui.gtceuterminal.manager_settings.tier_mode.hint_scroll_type").getString(),
+                Component.translatable("gui.gtceuterminal.manager_settings.tier_mode.tooltip").getString(),
                 () -> String.valueOf(getTierMode()),
-                value -> setTierMode(parseIntSafe(value, 1)));
-        tierInput.setHoverTexture(new ColorRectTexture(COLOR_BG_LIGHT));
-        tierLabel.setHoverTooltips(Component.translatable("gui.gtceuterminal.manager_settings.tier_mode.tooltip"));
-        tierInput.setNumbersOnly(1, 16);
-        tierInput.setTextColor(COLOR_TEXT_WHITE);
-        tierInput.setBackground(theme.backgroundTexture());
-        tierInput.setWheelDur(1);
-        panel.addWidget(tierInput);
-        panel.addWidget(new LabelWidget(8, yPos + 14,
-                Component.translatable("gui.gtceuterminal.manager_settings.tier_mode.hint_scroll_type").getString())
-                .setTextColor(0xFF666666));
-        yPos += 30;
+                val -> setTierMode(parseIntSafe(val, 1)),
+                1, 16);
 
         // 3. Repeat Count
-        LabelWidget repeatLabel = new LabelWidget(8, yPos,
-                Component.translatable("gui.gtceuterminal.manager_settings.repeat_count.label").getString());
-        repeatLabel.setTextColor(COLOR_TEXT_GRAY);
-        panel.addWidget(repeatLabel);
-        TextFieldWidget repeatInput = new TextFieldWidget(GUI_WIDTH - 70, yPos - 2, 50, 16,
+        y = addInputRow(panel, y, innerW,
+                Component.translatable("gui.gtceuterminal.manager_settings.repeat_count.label").getString(),
+                Component.translatable("gui.gtceuterminal.manager_settings.repeat_count.hint_layers").getString(),
+                Component.translatable("gui.gtceuterminal.manager_settings.repeat_count.tooltip").getString(),
                 () -> String.valueOf(getRepeatCount()),
-                value -> setRepeatCount(parseIntSafe(value, 0)));
-        repeatInput.setHoverTexture(new ColorRectTexture(COLOR_BG_LIGHT));
-        repeatLabel.setHoverTooltips(Component.translatable("gui.gtceuterminal.manager_settings.repeat_count.tooltip"));
-        repeatInput.setNumbersOnly(0, 32);
-        repeatInput.setTextColor(COLOR_TEXT_WHITE);
-        repeatInput.setBackground(theme.backgroundTexture());
-        repeatInput.setWheelDur(1);
-        panel.addWidget(repeatInput);
-        panel.addWidget(new LabelWidget(8, yPos + 14,
-                Component.translatable("gui.gtceuterminal.manager_settings.repeat_count.hint_layers").getString())
-                .setTextColor(0xFF666666));
-        yPos += 30;
+                val -> setRepeatCount(parseIntSafe(val, 0)),
+                0, 99);
 
-        // 4. Use AE2
+        // 4. Use AE2 (only if AE2 is present)
         if (MENetworkScanner.isAE2Available()) {
-            LabelWidget aeLabel = new LabelWidget(8, yPos,
-                    Component.translatable("gui.gtceuterminal.manager_settings.use_ae2.label").getString());
-            panel.addWidget(aeLabel);
-            ButtonWidget aeToggle = new ButtonWidget(GUI_WIDTH - 70, yPos - 2, 50, 16,
-                    new ColorRectTexture(COLOR_BG_DARK), cd -> toggleIsUseAE());
-            aeToggle.setHoverTexture(new ColorRectTexture(COLOR_BG_LIGHT));
-            aeLabel.setHoverTooltips(Component.translatable("gui.gtceuterminal.manager_settings.use_ae2.tooltip"));
-            panel.addWidget(aeToggle);
-            panel.addWidget(new LabelWidget(GUI_WIDTH - 54, yPos + 2,
-                    () -> getIsUseAE() == 1 ? yesStr : noStr));
-            panel.addWidget(new LabelWidget(8, yPos + 14,
-                    Component.translatable("gui.gtceuterminal.manager_settings.use_ae2.hint_use_materials").getString())
-                    .setTextColor(0xFF666666));
+            addToggleRow(panel, y, innerW,
+                    Component.translatable("gui.gtceuterminal.manager_settings.use_ae2.label").getString(),
+                    Component.translatable("gui.gtceuterminal.manager_settings.use_ae2.hint_use_materials").getString(),
+                    Component.translatable("gui.gtceuterminal.manager_settings.use_ae2.tooltip").getString(),
+                    () -> getIsUseAE() == 1,
+                    () -> toggleIsUseAE());
         }
 
         return panel;
     }
 
-    // ── NBT helpers (operate on itemStack directly) ───────────────────────────
+    // ── Row helpers ───────────────────────────────────────────────────────────
+    private int addToggleRow(WidgetGroup panel, int y, int panelW,
+                             String label, String hint, String tooltip,
+                             java.util.function.BooleanSupplier getter,
+                             Runnable toggler) {
+        int ctlX = panelW - CTL_W - 4;
+
+        LabelWidget lbl = new LabelWidget(8, y, label);
+        lbl.setTextColor(COLOR_TEXT_WHITE);
+        lbl.setHoverTooltips(Component.literal(tooltip));
+        panel.addWidget(lbl);
+
+        // Toggle button — texture is set initially and re-set on each click
+        boolean[] state = { getter.getAsBoolean() };
+
+        ButtonWidget[] btnRef = new ButtonWidget[1];
+        btnRef[0] = new ButtonWidget(ctlX, y - 2, CTL_W, CTL_H,
+                new ColorRectTexture(0x00000000),
+                cd -> {
+                    toggler.run();
+                    state[0] = getter.getAsBoolean();
+                    updateToggleTexture(btnRef[0], state[0]);
+                });
+        btnRef[0].setHoverTooltips(Component.literal(tooltip));
+        updateToggleTexture(btnRef[0], state[0]);
+
+        ButtonWidget btn = btnRef[0];
+        panel.addWidget(btn);
+
+        // Hint
+        if (hint != null && !hint.isBlank()) {
+            LabelWidget hintLbl = new LabelWidget(8, y + 14, hint);
+            hintLbl.setTextColor(COLOR_HINT);
+            panel.addWidget(hintLbl);
+        }
+
+        return y + ROW_H;
+    }
+
+    private int addInputRow(WidgetGroup panel, int y, int panelW,
+                            String label, String hint, String tooltip,
+                            java.util.function.Supplier<String> getter,
+                            java.util.function.Consumer<String> setter,
+                            int min, int max) {
+        int ctlX = panelW - CTL_W - 4;
+
+        LabelWidget lbl = new LabelWidget(8, y, label);
+        lbl.setTextColor(COLOR_TEXT_GRAY);
+        lbl.setHoverTooltips(Component.literal(tooltip));
+        panel.addWidget(lbl);
+
+        TextFieldWidget input = new TextFieldWidget(ctlX, y - 2, CTL_W, CTL_H, getter, setter);
+        input.setNumbersOnly(min, max);
+        input.setTextColor(COLOR_TEXT_WHITE);
+        input.setBackground(new GuiTextureGroup(
+                new ColorRectTexture(COLOR_BG_DARK),
+                new ColorBorderTexture(1, COLOR_BORDER_LIGHT)));
+        input.setHoverTexture(new GuiTextureGroup(
+                new ColorRectTexture(COLOR_BG_DARK),
+                new ColorBorderTexture(1, COLOR_TEXT_WHITE)));
+        input.setWheelDur(1);
+        input.setHoverTooltips(Component.literal(tooltip));
+        panel.addWidget(input);
+
+        if (hint != null && !hint.isBlank()) {
+            LabelWidget hintLbl = new LabelWidget(8, y + 14, hint);
+            hintLbl.setTextColor(COLOR_HINT);
+            panel.addWidget(hintLbl);
+        }
+
+        return y + ROW_H;
+    }
+
+    private void updateToggleTexture(ButtonWidget btn, boolean on) {
+        int bg     = on ? COLOR_ON  : COLOR_OFF;
+        int border = on ? COLOR_ON_BORDER : COLOR_OFF_BORDER;
+        String txt = on ? "§aYES" : "§cNO";
+        GuiTextureGroup tex = new GuiTextureGroup(
+                new ColorRectTexture(bg),
+                new ColorBorderTexture(1, border),
+                new TextTexture(txt).setWidth(CTL_W).setType(TextTexture.TextType.NORMAL));
+        btn.setButtonTexture(tex);
+        btn.setHoverTexture(new GuiTextureGroup(
+                new ColorRectTexture(bg),
+                new ColorBorderTexture(1, COLOR_TEXT_WHITE),
+                new TextTexture(txt).setWidth(CTL_W).setType(TextTexture.TextType.NORMAL)));
+    }
+
+    // ── NBT helpers ───────────────────────────────────────────────────────────
     private int getNoHatchMode() {
         CompoundTag tag = itemStack.getTag();
         return (tag != null && tag.contains("NoHatchMode")) ? tag.getInt("NoHatchMode") : 0;
@@ -202,10 +280,4 @@ public class ManagerSettingsUI {
         try { return Integer.parseInt(value); }
         catch (NumberFormatException e) { return defaultValue; }
     }
-
-    // ── Thin subclasses kept for compile compat ───────────────────────────────
-    public static class Settings extends com.gtceuterminal.common.config.ManagerSettings.Settings {
-        public Settings(ItemStack itemStack) { super(itemStack); }
-    }
-    public static class AutoBuildSettings extends com.gtceuterminal.common.config.ManagerSettings.AutoBuildSettings {}
 }

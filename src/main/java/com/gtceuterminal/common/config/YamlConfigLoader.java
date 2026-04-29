@@ -8,9 +8,8 @@ import java.nio.file.Path;
 import java.util.*;
 
 /** A simple YAML config loader that supports comments and preserves user edits.
- * - Can read/write scalar values and lists (both block and inline style).
+ * - Can read/write scalar values and lists
  * - When writing defaults, it only appends missing keys to preserve existing comments and formatting.
- * - Logs warnings for type mismatches and duplicate keys.
  */
 public class YamlConfigLoader {
 
@@ -93,7 +92,7 @@ public class YamlConfigLoader {
                 // Normalize Windows line endings
                 line = line.replace("\r", "");
 
-                // Detect list items BEFORE stripping comments (the dash is unambiguous)
+                // Detect list items BEFORE stripping comments
                 String stripped = line.stripLeading();
                 if (stripped.startsWith("- ")) {
                     if (currentListKey != null) {
@@ -159,7 +158,7 @@ public class YamlConfigLoader {
         if (file.exists()) {
             load();
             List<ConfigEntry> missing = entries.stream()
-                    .filter(e -> !data.containsKey(e.key))
+                    .filter(e -> e.key() != null && !data.containsKey(e.key()))
                     .toList();
             if (missing.isEmpty()) return;
 
@@ -240,8 +239,18 @@ public class YamlConfigLoader {
     }
 
     private static void writeEntry(PrintWriter writer, ConfigEntry entry) {
+        if (entry.key == null) {
+            writer.println();
+            if (entry.comment != null && !entry.comment.isBlank()) {
+                writer.println("# ─── " + entry.comment + " ───");
+            }
+            return;
+        }
         if (entry.comment != null && !entry.comment.isBlank()) {
-            writer.println("# " + entry.comment);
+            // Multi-line comments (the dismantler entry uses \n inside the comment string)
+            for (String line : entry.comment.split("\n")) {
+                writer.println("# " + line);
+            }
         }
         if (entry.value instanceof List<?> list) {
             writer.println(entry.key + ":");
@@ -260,6 +269,9 @@ public class YamlConfigLoader {
         }
         public static ConfigEntry of(String key, Object value) {
             return new ConfigEntry(key, value, null);
+        }
+        public static ConfigEntry section(String title) {
+            return new ConfigEntry(null, null, title);
         }
     }
 }

@@ -27,7 +27,6 @@ import com.lowdragmc.lowdraglib.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib.gui.texture.TextTexture;
 import com.lowdragmc.lowdraglib.gui.widget.*;
-import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
 import com.lowdragmc.lowdraglib.utils.Size;
 import com.lowdragmc.lowdraglib.utils.Position;
 
@@ -47,64 +46,67 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-// Upgrade Dialog for Components
 public class ComponentUpgradeDialog extends DialogWidget {
 
-    private static final int dialogW = 400;
-    private static final int dialogH = 380;
-    private static final int dialogS = 10;
+    // ── Dimensions ────────────────────────────────────────────────────────────
+    private static final int DIALOG_W  = 460;
+    private static final int DIALOG_H  = 430;
+    private static final int HEADER_H  = 28;
+    private static final int INFO_H    = 38;
+    private static final int OPTIONS_H = 80;  // tier/option selection panel
+    private static final int PAD       = 10;
 
-    private ItemTheme theme;
-    private int COLOR_BG_DARK = 0xFF1A1A1A;
-    private int COLOR_BG_MEDIUM = 0xFF2B2B2B;
-    private int COLOR_BG_LIGHT = 0xFF3F3F3F;
-    private int COLOR_BORDER_LIGHT = 0xFF5A5A5A;
+    // Y positions inside content (computed from constants)
+    private static final int INFO_Y    = 2 + HEADER_H + 3;
+    private static final int OPTIONS_Y = INFO_Y + INFO_H + 4;
+    // MAT_Y uses two-zone height (130) as default
+    private static final int MAT_Y     = OPTIONS_Y + 130 + 4;
+    private static final int BUTTONS_Y = DIALOG_H - 36;
+    private static final int MAT_H     = BUTTONS_Y - MAT_Y - 4;
+
+    // ── Colors ────────────────────────────────────────────────────────────────
+    private int COLOR_BG_DARK;
+    private int COLOR_BG_MEDIUM;
+    private int COLOR_BG_LIGHT;
+    private int COLOR_BORDER_LIGHT;
     private static final int COLOR_BORDER_DARK = 0xFF0A0A0A;
-    private static final int COLOR_TEXT_WHITE = 0xFFFFFFFF;
-    private static final int COLOR_TEXT_GRAY = 0xFFAAAAAA;
-    private static final int COLOR_SUCCESS = 0xFF00FF00;
-    private static final int COLOR_ERROR = 0xFFFF0000;
+    private static final int COLOR_TEXT_WHITE  = 0xFFFFFFFF;
+    private static final int COLOR_TEXT_GRAY   = 0xFFAAAAAA;
+    private static final int COLOR_SUCCESS     = 0xFF00FF00;
+    private static final int COLOR_ERROR       = 0xFFFF0000;
 
-    private final ComponentGroup group;
-    private final MultiblockInfo multiblock;
-    private final Player player;
-    private final DialogWidget parentDialog;
+    // ── State ─────────────────────────────────────────────────────────────────
+    private ItemTheme theme;
+    private final ComponentGroup   group;
+    private final MultiblockInfo   multiblock;
+    private final Player           player;
+    private final DialogWidget     parentDialog;
+    @SuppressWarnings("unused")
     private final ComponentDetailUI parentUI;
+
     private UniversalUpgradeCatalog universalCatalog;
 
-    private Integer tierFilter = null; // null = ALL
-    private DraggableScrollableWidgetGroup optionsScroll;
-    private ComponentInfo currentRep;
-    private boolean centeredOnce = false;
-
-    private int selectedTier = -1;
-    private int W = dialogW;
-    private int H = dialogH;
-
-    // For component types where tier is not enough (e.g. maintenance variants, coil block variants)
-    private String selectedUpgradeId = null;
+    private Integer  tierFilter      = null; // null = show all
+    private int      selectedTier    = -1;
+    private String   selectedUpgradeId = null;
 
     private List<MaterialAvailability> materials;
-    private boolean hasEnough = false;
 
+    private WidgetGroup content;
     private WidgetGroup tierSelectionPanel;
     private WidgetGroup materialsPanel;
-    private ButtonWidget confirmButton;
 
-    public static final int DIALOG_W = 400;
-    public static final int DIALOG_H = 380;
+    private DraggableScrollableWidgetGroup optionsScroll;
+    private ComponentInfo currentRep;
 
-
-    private boolean isPositioned = false;  // <-- AGREGAR ESTE CAMPO
-
+    // ── Constructors ──────────────────────────────────────────────────────────
     public ComponentUpgradeDialog(
             WidgetGroup parent,
             ComponentDetailUI parentUI,
             DialogWidget parentDialog,
             ComponentGroup group,
             MultiblockInfo multiblock,
-            Player player
-    ) {
+            Player player) {
         this(parent, parentUI, parentDialog, group, multiblock, player, null);
     }
 
@@ -115,267 +117,462 @@ public class ComponentUpgradeDialog extends DialogWidget {
             ComponentGroup group,
             MultiblockInfo multiblock,
             Player player,
-            ItemTheme passedTheme
-    ) {
+            ItemTheme passedTheme) {
         super(parent, true);
-
-        this.parentUI = parentUI;
+        this.parentUI     = parentUI;
         this.parentDialog = parentDialog;
-        this.group = group;
-        this.multiblock = multiblock;
-        this.player = player;
-
-        // Use passed theme if available (avoids inventory search issues inside open GUIs)
-        this.theme = passedTheme != null ? passedTheme : ItemTheme.loadFromPlayer(player);
-        com.gtceuterminal.GTCEUTerminalMod.LOGGER.info(
-                "ComponentUpgradeDialog: theme source={} accent=#{} bg=#{} style={}",
-                passedTheme != null ? "PASSED" : "SEARCHED",
-                Integer.toHexString(this.theme.accentColor & 0xFFFFFF).toUpperCase(),
-                Integer.toHexString(this.theme.bgColor     & 0xFFFFFF).toUpperCase(),
-                this.theme.uiStyle);
-        this.COLOR_BG_DARK      = theme.bgColor;
-        this.COLOR_BG_MEDIUM    = theme.panelColor;
-        this.COLOR_BG_LIGHT     = theme.isNativeStyle() ? 0xFF3A3A3A : theme.accent(0xAA);
-        this.COLOR_BORDER_LIGHT = theme.isNativeStyle() ? 0xFF555555 : theme.accent(0xFF);
-
+        this.group        = group;
+        this.multiblock   = multiblock;
+        this.player       = player;
+        this.theme        = passedTheme != null ? passedTheme : ItemTheme.loadFromPlayer(player);
+        applyTheme();
         initDialog();
     }
 
+    private void applyTheme() {
+        COLOR_BG_DARK      = theme.bgColor;
+        COLOR_BG_MEDIUM    = theme.panelColor;
+        COLOR_BG_LIGHT     = theme.isNativeStyle() ? 0xFF3A3A3A : theme.accent(0xAA);
+        COLOR_BORDER_LIGHT = theme.isNativeStyle() ? 0xFF555555 : theme.accent(0xFF);
+    }
+
+    @Override
+    public void close() {
+        super.close();
+        if (parentDialog != null) parentDialog.setActive(true);
+    }
+
+    // ── Layout init ───────────────────────────────────────────────────────────
     private void initDialog() {
-        var mc = Minecraft.getInstance();
-        int sw = mc.screen != null ? mc.screen.width : mc.getWindow().getGuiScaledWidth();
-        int sh = mc.screen != null ? mc.screen.height : mc.getWindow().getGuiScaledHeight();
-
-        int margin = 10;
-
-        int maxW = sw - margin * 2;
-        int maxH = sh - margin * 2;
-
-        int contentW = dialogW;
-        int contentH = dialogH;
-
-        int viewportW = Math.min(contentW, maxW);
-        int viewportH = Math.min(contentH, maxH);
-
-        int screenX = (sw - viewportW) / 2;
-        int screenY = (sh - viewportH) / 2;
-
-        screenX = Mth.clamp(screenX, margin, sw - viewportW - margin);
-        screenY = Mth.clamp(screenY, margin, sh - viewportH - margin);
-
-        Position parentAbsPos = parent.getPosition();
-        int x = screenX - parentAbsPos.x;
-        int y = screenY - parentAbsPos.y;
-
-        if (contentW <= maxW && contentH <= maxH) {
-            setSize(new Size(contentW, contentH));
-            setSelfPosition(new Position(x, y));
-            setBackground(theme.backgroundTexture());
-
-            if (!theme.isNativeStyle()) {
-                addWidget(new ImageWidget(0, 0, contentW, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-                addWidget(new ImageWidget(0, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-                addWidget(new ImageWidget(contentW - 2, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_DARK)));
-                addWidget(new ImageWidget(0, contentH - 2, contentW, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
-            }
-
-            addWidget(createHeader());
-            addWidget(createInfoPanel());
-
-            tierSelectionPanel = createTierSelection();
-            addWidget(tierSelectionPanel);
-
-            materialsPanel = createMaterialsPanel();
-            addWidget(materialsPanel);
-
-            addWidget(createButtons());
-        } else {
-            setSize(new Size(viewportW, viewportH));
-            setSelfPosition(new Position(x, y));
-            setBackground(theme.backgroundTexture());
-
-            WidgetGroup content = new WidgetGroup(0, 0, contentW, contentH);
-            content.setBackground(theme.backgroundTexture());
-
-            if (!theme.isNativeStyle()) {
-                content.addWidget(new ImageWidget(0, 0, contentW, 2, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-                content.addWidget(new ImageWidget(0, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
-                content.addWidget(new ImageWidget(contentW - 2, 0, 2, contentH, new ColorRectTexture(COLOR_BORDER_DARK)));
-                content.addWidget(new ImageWidget(0, contentH - 2, contentW, 2, new ColorRectTexture(COLOR_BORDER_DARK)));
-            }
-
-            content.addWidget(createHeader());
-            content.addWidget(createInfoPanel());
-
-            WidgetGroup tierPanel = createTierSelection();
-            content.addWidget(tierPanel);
-            this.tierSelectionPanel = tierPanel;
-
-            WidgetGroup matPanel = createMaterialsPanel();
-            content.addWidget(matPanel);
-            this.materialsPanel = matPanel;
-
-            content.addWidget(createButtons());
-
-            // Viewport
-            DraggableScrollableWidgetGroup viewport =
-                    new DraggableScrollableWidgetGroup(0, 0, viewportW, viewportH);
-            viewport.setYScrollBarWidth(8);
-            viewport.setYBarStyle(
-                    new ColorRectTexture(COLOR_BORDER_DARK),
-                    new ColorRectTexture(COLOR_BORDER_LIGHT)
-            );
-            viewport.addWidget(content);
-
-            addWidget(viewport);
-        }
-
-        // Catalog
+        // Build universal catalog before building the UI
         var controller = multiblock.getController();
         if (controller instanceof MultiblockControllerMachine mmc) {
             universalCatalog = UniversalUpgradeCatalogBuilder.build(mmc, player.level());
         }
+
+        var mc   = Minecraft.getInstance();
+        int sw   = mc.screen != null ? mc.screen.width  : mc.getWindow().getGuiScaledWidth();
+        int sh   = mc.screen != null ? mc.screen.height : mc.getWindow().getGuiScaledHeight();
+        int margin = 10;
+        int maxW = sw - margin * 2;
+        int maxH = sh - margin * 2;
+        int viewW = Math.min(DIALOG_W, maxW);
+        int viewH = Math.min(DIALOG_H, maxH);
+
+        int screenX = Mth.clamp((sw - viewW) / 2, margin, sw - viewW - margin);
+        int screenY = Mth.clamp((sh - viewH) / 2, margin, sh - viewH - margin);
+        Position abs = parent.getPosition();
+        setSelfPosition(new Position(screenX - abs.x, screenY - abs.y));
+        setSize(new Size(viewW, viewH));
+        setBackground(theme.backgroundTexture());
+
+        // Build full-size content
+        this.content = buildContent(DIALOG_W, DIALOG_H);
+
+        if (DIALOG_W <= maxW && DIALOG_H <= maxH) {
+            // Fits — flatten into this dialog directly
+            for (Widget w : new ArrayList<>(content.widgets)) {
+                addWidget(w);
+            }
+            // Keep content reference valid for refresh methods
+        } else {
+            // Needs scroll wrapper
+            DraggableScrollableWidgetGroup viewport =
+                    new DraggableScrollableWidgetGroup(0, 0, viewW, viewH);
+            viewport.setYScrollBarWidth(8);
+            viewport.setYBarStyle(
+                    new ColorRectTexture(COLOR_BORDER_DARK),
+                    new ColorRectTexture(COLOR_BORDER_LIGHT));
+            viewport.addWidget(content);
+            addWidget(viewport);
+        }
     }
 
-    private WidgetGroup createHeader() {
-        WidgetGroup header = new WidgetGroup(2, 2, W - 4, 24);
-        header.setBackground(theme.panelTexture());
+    // ── Content builder ───────────────────────────────────────────────────────
+    private WidgetGroup buildContent(int cW, int cH) {
+        WidgetGroup root = new WidgetGroup(0, 0, cW, cH);
+        root.setBackground(theme.backgroundTexture());
+
+        // Outer border
+        if (!theme.isNativeStyle()) {
+            root.addWidget(new ImageWidget(0,      0,      cW, 2,  new ColorRectTexture(COLOR_BORDER_LIGHT)));
+            root.addWidget(new ImageWidget(0,      0,      2,  cH, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+            root.addWidget(new ImageWidget(cW - 2, 0,      2,  cH, new ColorRectTexture(COLOR_BORDER_DARK)));
+            root.addWidget(new ImageWidget(0,      cH - 2, cW, 2,  new ColorRectTexture(COLOR_BORDER_DARK)));
+        }
+
+        root.addWidget(buildHeader(cW));
+        root.addWidget(buildInfoPanel(cW));
+
+        this.tierSelectionPanel = buildOptionsPanel(cW);
+        root.addWidget(tierSelectionPanel);
+
+        this.materialsPanel = buildMaterialsPanel(cW);
+        root.addWidget(materialsPanel);
+
+        root.addWidget(buildButtons(cW, cH));
+
+        return root;
+    }
+
+    // ── Header ────────────────────────────────────────────────────────────────
+    private WidgetGroup buildHeader(int cW) {
+        WidgetGroup header = new WidgetGroup(2, 2, cW - 4, HEADER_H);
+        header.setBackground(theme.headerTexture());
 
         String title = Component.translatable(
                 "gui.gtceuterminal.component_upgrade_dialog.title",
                 group.getType().getDisplayNameComponent()
         ).getString();
-        LabelWidget titleLabel = new LabelWidget(10, 7, title);
+        LabelWidget titleLabel = new LabelWidget(10, 9, "§f" + title);
         titleLabel.setTextColor(COLOR_TEXT_WHITE);
         header.addWidget(titleLabel);
+
+        // ✕ close
+        ButtonWidget closeBtn = new ButtonWidget(cW - 30, 4, 22, 20,
+                new GuiTextureGroup(
+                        new ColorRectTexture(COLOR_BG_MEDIUM),
+                        new ColorBorderTexture(1, COLOR_BORDER_LIGHT)),
+                cd -> close());
+        closeBtn.setButtonTexture(
+                new TextTexture("§c✕").setWidth(22).setType(TextTexture.TextType.NORMAL));
+        closeBtn.setHoverTexture(new GuiTextureGroup(
+                new ColorRectTexture(0xFFAA0000),
+                new ColorBorderTexture(1, COLOR_TEXT_WHITE)));
+        header.addWidget(closeBtn);
 
         return header;
     }
 
-    private WidgetGroup createInfoPanel() {
-        WidgetGroup panel = new WidgetGroup(10, 30, dialogW - 20, 36);
+    // ── Info panel ────────────────────────────────────────────────────────────
+    private WidgetGroup buildInfoPanel(int cW) {
+        WidgetGroup panel = new WidgetGroup(PAD, INFO_Y, cW - PAD * 2, INFO_H);
         panel.setBackground(theme.panelTexture());
 
         ComponentInfo rep = group.getRepresentative();
-        if (rep != null) {
-            LabelWidget countLabel = new LabelWidget(10, 5,
-                    Component.translatable(
-                            "gui.gtceuterminal.component_upgrade_dialog.info.count_components",
-                            group.getCount()
-                    ).getString());
-            countLabel.setTextColor(COLOR_TEXT_WHITE);
-            panel.addWidget(countLabel);
+        if (rep == null) return panel;
 
-            String tierName = rep.getTierName();
-            if (rep.getType() == ComponentType.COIL) {
-                tierName = ComponentType.getCoilTierName(rep.getTier());
-            }
-            LabelWidget currentLabel = new LabelWidget(10, 18,
-                    Component.translatable(
-                            "gui.gtceuterminal.component_upgrade_dialog.info.current_tier",
-                            tierName
-                    ).getString());
-            currentLabel.setTextColor(COLOR_TEXT_WHITE);
-            panel.addWidget(currentLabel);
-        }
+        String tierName = (rep.getType() == ComponentType.COIL)
+                ? ComponentType.getCoilTierName(rep.getTier())
+                : rep.getTierName();
+
+        // "×4 Energy Hatch  —  Current tier: HV"
+        String line1 = Component.translatable(
+                "gui.gtceuterminal.component_upgrade_dialog.info.count_components",
+                group.getCount()
+        ).getString();
+        String line2 = Component.translatable(
+                "gui.gtceuterminal.component_upgrade_dialog.info.current_tier",
+                tierName
+        ).getString();
+
+        LabelWidget l1 = new LabelWidget(10, 6,  "§f" + line1);
+        LabelWidget l2 = new LabelWidget(10, 19, "§7" + line2);
+        l1.setTextColor(COLOR_TEXT_WHITE);
+        l2.setTextColor(COLOR_TEXT_GRAY);
+        panel.addWidget(l1);
+        panel.addWidget(l2);
 
         return panel;
     }
 
-    // Tier selection / Option selection
-    private WidgetGroup createTierSelection() {
+    // ── Options panel (tier / upgrade selection) ──────────────────────────────
+    private static final int OPTIONS_H_TWO_ZONE = 130;
+    // Scroll reference for the tier button row (to update selection highlight)
+    private WidgetGroup tierButtonsRow;
+
+    private WidgetGroup buildOptionsPanel(int cW) {
         ComponentInfo rep = group.getRepresentative();
 
-        WidgetGroup panel = new WidgetGroup(10, 70, dialogW - 20, 75);
+        boolean isSpecialType = rep != null && (rep.getType() == ComponentType.MAINTENANCE
+                || rep.getType() == ComponentType.COIL);
+        int panelH = isSpecialType ? OPTIONS_H : OPTIONS_H_TWO_ZONE;
+
+        WidgetGroup panel = new WidgetGroup(PAD, OPTIONS_Y, cW - PAD * 2, panelH);
         panel.setBackground(theme.panelTexture());
 
         if (rep == null) return panel;
-        if (tierFilter == null) tierFilter = rep.getTier();
-
-        // Label
-        String labelText;
-        if (rep.getType() == ComponentType.MAINTENANCE || rep.getType() == ComponentType.COIL) {
-            labelText = Component.translatable(
-                    "gui.gtceuterminal.component_upgrade_dialog.tier_selection.label_upgrade_option"
-            ).getString();
-        } else {
-            labelText = Component.translatable(
-                    "gui.gtceuterminal.component_upgrade_dialog.tier_selection.label_target_tier"
-            ).getString();
-        }
-
-        LabelWidget label = new LabelWidget(10, 4, labelText);
-        label.setTextColor(COLOR_TEXT_WHITE);
-        panel.addWidget(label);
-
-        // Scroll
-        int scrollWidth, scrollHeight;
-
-        if (rep.getType() == ComponentType.MAINTENANCE || rep.getType() == ComponentType.COIL) {
-            int btnWidth = 120;
-            int spacing = 6;
-            scrollWidth = (btnWidth * 3) + (spacing * 2) + 20;  // 386px
-            scrollHeight = 55;
-        } else {
-            scrollWidth = (dialogW - 20) - 20;
-            scrollHeight = 55;
-        }
-
-        DraggableScrollableWidgetGroup scroll = new DraggableScrollableWidgetGroup(
-                10, 18, scrollWidth, scrollHeight
-        );
-
-        scroll.setYScrollBarWidth(6);
-        scroll.setYBarStyle(
-                new ColorRectTexture(COLOR_BORDER_DARK),
-                new ColorRectTexture(0xFF888888)
-        );
-
-        panel.addWidget(scroll);
-        this.optionsScroll = scroll;
         this.currentRep = rep;
 
-        // --- MAINTENANCE ---
-        if (rep.getType() == ComponentType.MAINTENANCE) {
-            buildMaintenanceGrid(rep, scroll);
-            return panel;
-        }
+        int scrollW = cW - PAD * 2 - 20;
 
-        // --- COIL ---
-        if (rep.getType() == ComponentType.COIL) {
-            buildCoilGrid(rep, scroll);
-            return panel;
-        }
+        if (isSpecialType) {
+            // Single-zone: just the variant grid
+            LabelWidget label = new LabelWidget(10, 5,
+                    Component.translatable("gui.gtceuterminal.component_upgrade_dialog.tier_selection.label_upgrade_option").getString());
+            label.setTextColor(COLOR_TEXT_WHITE);
+            panel.addWidget(label);
 
-        // --- Default ---
-        if (!buildUniversalCandidatesGrid(rep, scroll, tierFilter)) {
-            List<Integer> tiers = ComponentUpgradeHelper.getAvailableTiers(rep.getType());
-            buildTierGrid(rep, scroll, tiers);
+            DraggableScrollableWidgetGroup scroll =
+                    new DraggableScrollableWidgetGroup(10, 20, scrollW, panelH - 28);
+            scroll.setYScrollBarWidth(6);
+            scroll.setYBarStyle(new ColorRectTexture(COLOR_BORDER_DARK), new ColorRectTexture(0xFF888888));
+            panel.addWidget(scroll);
+            this.optionsScroll = scroll;
+            populateOptionsScroll(rep);
+
+        } else {
+            LabelWidget tierLabel = new LabelWidget(10, 5,
+                    Component.translatable("gui.gtceuterminal.component_upgrade_dialog.tier_selection.label_target_tier").getString());
+            tierLabel.setTextColor(COLOR_TEXT_WHITE);
+            panel.addWidget(tierLabel);
+
+            int tierRowH = 22;
+            WidgetGroup tierRow = new WidgetGroup(10, 18, scrollW, tierRowH);
+            panel.addWidget(tierRow);
+
+            List<Integer> availableTiers = getAvailableTiersFromCatalog(rep);
+            int spacing = 2;
+            int btnW = availableTiers.isEmpty() ? 30
+                    : Math.min(40, (scrollW - spacing * (availableTiers.size() - 1)) / availableTiers.size());
+            int btnH = tierRowH;
+            int xPos = 0;
+            for (int tier : availableTiers) {
+                boolean sel = (tierFilter != null && tierFilter == tier);
+                int bg     = sel ? 0x6600FF00 : COLOR_BG_LIGHT;
+                int border = sel ? 0xFF00FF00 : COLOR_BORDER_LIGHT;
+                TextTexture txt = new TextTexture("§f" + safeTierName(tier))
+                        .setWidth(btnW).setType(TextTexture.TextType.NORMAL);
+                final int t = tier;
+                ButtonWidget btn = new ButtonWidget(xPos, 0, btnW, btnH,
+                        new GuiTextureGroup(new ColorRectTexture(bg), new ColorBorderTexture(1, border), txt),
+                        cd -> onTierButtonClicked(t));
+                btn.setHoverTexture(new GuiTextureGroup(
+                        new ColorRectTexture(bg), new ColorBorderTexture(1, COLOR_TEXT_WHITE), txt));
+                tierRow.addWidget(btn);
+                xPos += btnW + spacing;
+            }
+            this.tierButtonsRow = tierRow;
+
+            int divY = 18 + tierRowH + 3;
+            panel.addWidget(new ImageWidget(10, divY, scrollW, 1, new ColorRectTexture(COLOR_BORDER_LIGHT)));
+
+            int varY = divY + 4;
+            int varH = panelH - varY - 4;
+
+            DraggableScrollableWidgetGroup scroll =
+                    new DraggableScrollableWidgetGroup(10, varY, scrollW, varH);
+            scroll.setYScrollBarWidth(6);
+            scroll.setYBarStyle(new ColorRectTexture(COLOR_BORDER_DARK), new ColorRectTexture(0xFF888888));
+            panel.addWidget(scroll);
+            this.optionsScroll = scroll;
+
+            if (tierFilter != null) {
+                populateOptionsScroll(rep);
+            } else {
+                scroll.addWidget(new LabelWidget(4, 4, "§7Select a tier above"));
+            }
         }
 
         return panel;
     }
 
+    private void populateTierButtons(ComponentInfo rep, WidgetGroup tierRow) {
+        tierRow.clearAllWidgets();
+        List<Integer> availableTiers = getAvailableTiersFromCatalog(rep);
+        int spacing = 2;
+        int scrollW = DIALOG_W - PAD * 2 - 20;
+        int btnW = availableTiers.isEmpty() ? 30
+                : Math.min(40, (scrollW - spacing * (availableTiers.size() - 1)) / availableTiers.size());
+        int btnH = 22;
+        int xPos = 0;
+        for (int tier : availableTiers) {
+            boolean sel = (tierFilter != null && tierFilter == tier);
+            int bg     = sel ? 0x6600FF00 : COLOR_BG_LIGHT;
+            int border = sel ? 0xFF00FF00 : COLOR_BORDER_LIGHT;
+            TextTexture txt = new TextTexture("§f" + safeTierName(tier))
+                    .setWidth(btnW).setType(TextTexture.TextType.NORMAL);
+            final int t = tier;
+            ButtonWidget btn = new ButtonWidget(xPos, 0, btnW, btnH,
+                    new GuiTextureGroup(new ColorRectTexture(bg), new ColorBorderTexture(1, border), txt),
+                    cd -> onTierButtonClicked(t));
+            btn.setHoverTexture(new GuiTextureGroup(
+                    new ColorRectTexture(bg), new ColorBorderTexture(1, COLOR_TEXT_WHITE), txt));
+            tierRow.addWidget(btn);
+            xPos += btnW + spacing;
+        }
+    }
+
+    private List<Integer> getAvailableTiersFromCatalog(ComponentInfo rep) {
+        java.util.TreeSet<Integer> tiers = new java.util.TreeSet<>();
+        if (universalCatalog != null) {
+            var opt = universalCatalog.get(rep.getPosition());
+            if (opt != null && opt.candidates() != null) {
+                String currentId = blockId(rep);
+                for (var c : opt.candidates()) {
+                    if (c == null || c.blockId() == null) continue;
+                    if (currentId != null && currentId.equalsIgnoreCase(c.blockId())) continue;
+                    tiers.add(c.tier());
+                }
+            }
+        }
+        if (tiers.isEmpty()) {
+            tiers.addAll(ComponentUpgradeHelper.getAvailableTiers(rep.getType()));
+            tiers.remove(rep.getTier());
+        }
+        return new ArrayList<>(tiers);
+    }
+
+    private void populateOptionsScroll(ComponentInfo rep) {
+        if (optionsScroll == null) return;
+        optionsScroll.clearAllWidgets();
+
+        if (rep.getType() == ComponentType.MAINTENANCE) {
+            buildMaintenanceGrid(rep, optionsScroll);
+            return;
+        }
+        if (rep.getType() == ComponentType.COIL) {
+            buildCoilGrid(rep, optionsScroll);
+            return;
+        }
+        if (!buildUniversalCandidatesGrid(rep, optionsScroll, tierFilter)) {
+            List<Integer> tiers = ComponentUpgradeHelper.getAvailableTiers(rep.getType());
+            buildTierGrid(rep, optionsScroll, tiers);
+        }
+    }
+
+
+    // ── Materials panel ───────────────────────────────────────────────────────
+    private WidgetGroup buildMaterialsPanel(int cW) {
+        WidgetGroup panel = new WidgetGroup(PAD, MAT_Y, cW - PAD * 2, MAT_H);
+        panel.setBackground(new GuiTextureGroup(
+                new ColorRectTexture(COLOR_BG_DARK),
+                new ColorBorderTexture(1, COLOR_BORDER_DARK)));
+
+        LabelWidget sectionLabel = new LabelWidget(10, 5,
+                Component.translatable("gui.gtceuterminal.component_upgrade_dialog.materials.required_label").getString());
+        sectionLabel.setTextColor(COLOR_TEXT_WHITE);
+        panel.addWidget(sectionLabel);
+
+        // Placeholder shown before anything is selected
+        LabelWidget placeholder = new LabelWidget(10, 22,
+                Component.translatable("gui.gtceuterminal.component_upgrade_dialog.materials.select_option_to_see").getString());
+        placeholder.setTextColor(COLOR_TEXT_GRAY);
+        panel.addWidget(placeholder);
+
+        return panel;
+    }
+
+    private void refreshMaterialsPanel() {
+        if (materialsPanel == null || content == null) return;
+        content.removeWidget(materialsPanel);
+
+        int cW = DIALOG_W;
+        WidgetGroup panel = new WidgetGroup(PAD, MAT_Y, cW - PAD * 2, MAT_H);
+        panel.setBackground(new GuiTextureGroup(
+                new ColorRectTexture(COLOR_BG_DARK),
+                new ColorBorderTexture(1, COLOR_BORDER_DARK)));
+
+        LabelWidget sectionLabel = new LabelWidget(10, 5,
+                Component.translatable("gui.gtceuterminal.component_upgrade_dialog.materials.required_label").getString());
+        sectionLabel.setTextColor(COLOR_TEXT_WHITE);
+        panel.addWidget(sectionLabel);
+
+        if (selectedTier == -1) {
+            // Nothing selected yet
+            LabelWidget placeholder = new LabelWidget(10, 22,
+                    Component.translatable("gui.gtceuterminal.component_upgrade_dialog.materials.select_option_to_see").getString());
+            placeholder.setTextColor(COLOR_TEXT_GRAY);
+            panel.addWidget(placeholder);
+        } else if (player.isCreative()) {
+            LabelWidget creative = new LabelWidget(10, 22,
+                    Component.translatable("gui.gtceuterminal.component_upgrade_dialog.materials.creative_mode").getString());
+            creative.setTextColor(COLOR_SUCCESS);
+            panel.addWidget(creative);
+            if (materials != null && !materials.isEmpty()) {
+                panel.addWidget(new LDLMaterialListWidget(0, 38, cW - PAD * 2, MAT_H - 42, materials));
+            }
+        } else if (materials != null && !materials.isEmpty()) {
+            panel.addWidget(new LDLMaterialListWidget(0, 20, cW - PAD * 2, MAT_H - 24, materials));
+        } else {
+            LabelWidget none = new LabelWidget(10, 22,
+                    Component.translatable("gui.gtceuterminal.component_upgrade_dialog.materials.select_option_to_see").getString());
+            none.setTextColor(COLOR_TEXT_GRAY);
+            panel.addWidget(none);
+        }
+
+        this.materialsPanel = panel;
+        content.addWidget(materialsPanel);
+
+        if (!(widgets.contains(content))) {
+            removeWidget(getWidgetOfType(WidgetGroup.class, MAT_Y));
+            addWidget(materialsPanel);
+        }
+    }
+
+    private WidgetGroup getWidgetOfType(Class<WidgetGroup> cls, int y) {
+        for (Widget w : new ArrayList<>(widgets)) {
+            if (cls.isInstance(w) && w.getPosition().y == y) return (WidgetGroup) w;
+        }
+        return null;
+    }
+
+    // ── Action buttons ────────────────────────────────────────────────────────
+    private WidgetGroup buildButtons(int cW, int cH) {
+        WidgetGroup buttons = new WidgetGroup(PAD, BUTTONS_Y, cW - PAD * 2, 28);
+
+        // Confirm — green
+        int confirmW = 150;
+        ButtonWidget confirmBtn = new ButtonWidget(0, 0, confirmW, 24,
+                new GuiTextureGroup(
+                        new ColorRectTexture(0xFF2E7D32),
+                        new ColorBorderTexture(1, COLOR_SUCCESS)),
+                cd -> performUpgrade());
+        confirmBtn.setButtonTexture(new TextTexture(
+                Component.translatable("gui.gtceuterminal.component_upgrade_dialog.actions.confirm_change").getString())
+                .setWidth(confirmW).setType(TextTexture.TextType.NORMAL));
+        confirmBtn.setHoverTexture(new GuiTextureGroup(
+                new ColorRectTexture(0xFF43A047),
+                new ColorBorderTexture(1, COLOR_TEXT_WHITE)));
+        buttons.addWidget(confirmBtn);
+
+        // Auto-craft — blue, only when ME linked
+        boolean showAutoCraft = WirelessTerminalHandler.isLinked(findWirelessTerminal());
+        int autoCraftW = 110;
+        if (showAutoCraft) {
+            ButtonWidget autoCraftBtn = new ButtonWidget(confirmW + 8, 0, autoCraftW, 24,
+                    new GuiTextureGroup(
+                            new ColorRectTexture(0xFF1A3A6B),
+                            new ColorBorderTexture(1, 0xFF2E75B6)),
+                    cd -> performAutoCraft());
+            autoCraftBtn.setButtonTexture(new TextTexture(
+                    Component.translatable("gui.gtceuterminal.component_upgrade_dialog.actions.auto_craft").getString())
+                    .setWidth(autoCraftW).setType(TextTexture.TextType.NORMAL));
+            autoCraftBtn.setHoverTexture(new GuiTextureGroup(
+                    new ColorRectTexture(0xFF243A6B),
+                    new ColorBorderTexture(1, COLOR_TEXT_WHITE)));
+            buttons.addWidget(autoCraftBtn);
+        }
+
+        // Cancel — right side
+        int cancelW = 120;
+        ButtonWidget cancelBtn = new ButtonWidget(cW - PAD * 2 - cancelW, 0, cancelW, 24,
+                new GuiTextureGroup(
+                        new ColorRectTexture(COLOR_BG_LIGHT),
+                        new ColorBorderTexture(1, COLOR_BORDER_LIGHT)),
+                cd -> close());
+        cancelBtn.setButtonTexture(new TextTexture(
+                Component.translatable("gui.gtceuterminal.component_upgrade_dialog.actions.cancel").getString())
+                .setWidth(cancelW).setType(TextTexture.TextType.NORMAL));
+        cancelBtn.setHoverTexture(new GuiTextureGroup(
+                new ColorRectTexture(COLOR_BG_LIGHT),
+                new ColorBorderTexture(1, COLOR_TEXT_WHITE)));
+        buttons.addWidget(cancelBtn);
+
+        return buttons;
+    }
+
+    // ── Grid builders ───────────────────────────
     private boolean buildUniversalCandidatesGrid(ComponentInfo rep,
                                                  DraggableScrollableWidgetGroup scroll,
                                                  Integer filterTier) {
         if (universalCatalog == null) return false;
-
         var opt = universalCatalog.get(rep.getPosition());
         if (opt == null) return false;
-
         var candidates = opt.candidates();
         if (candidates == null || candidates.isEmpty()) return false;
 
         String currentId = rep.getState().getBlock().builtInRegistryHolder().key().location().toString();
-
-        int btnWidth = 120;
-        int btnHeight = 26;
-        int spacing = 6;
-        int perRow = 3;
-        int xPos = 0;
-        int yPos = 0;
-        int added = 0;
 
         List<UniversalUpgradeCatalog.CandidatePart> list = new ArrayList<>();
         for (var c : candidates) {
@@ -384,371 +581,263 @@ public class ComponentUpgradeDialog extends DialogWidget {
             if (filterTier != null && c.tier() != filterTier) continue;
             list.add(c);
         }
-
         if (list.isEmpty()) return false;
 
         list.sort(Comparator.comparingInt(UniversalUpgradeCatalog.CandidatePart::tier)
                 .thenComparing(UniversalUpgradeCatalog.CandidatePart::blockId, String.CASE_INSENSITIVE_ORDER));
 
+        int btnW = 120, btnH = 26, spacing = 6, perRow = 3, xPos = 0, yPos = 0, added = 0;
         for (var c : list) {
-            if (c == null || c.blockId() == null) continue;
-
-            if (added > 0 && added % perRow == 0) {
-                xPos = 0;
-                yPos += btnHeight + spacing;
-            }
-
-            // Display name
-            String display = c.blockId();
-            try {
-                Block b = BuiltInRegistries.BLOCK.get(net.minecraft.resources.ResourceLocation.tryParse(c.blockId()));
-                if (b != null) {
-                    String loc = Component.translatable(b.getDescriptionId()).getString();
-                    if (loc != null && !loc.isBlank()) display = loc;
-                }
-            } catch (Exception ignored) {}
-
-            display = trimCommonSuffixes(display);
-            if (display.length() > 16) {
-                display = display.substring(0, 15) + "…";
-            }
-
+            if (added > 0 && added % perRow == 0) { xPos = 0; yPos += btnH + spacing; }
+            String display = resolveBlockName(c.blockId(), 16);
             boolean isSelected = c.blockId().equalsIgnoreCase(selectedUpgradeId);
-
-            String text = "§f" + display + "\n§7(" + safeTierName(c.tier()) + ")";
-
-            ButtonWidget btn = createOptionButton(
-                    text,
-                    isSelected,
-                    xPos, yPos,
-                    btnWidth, btnHeight,
-                    () -> selectUpgradeOption(c.blockId(), c.tier())
-            );
-
-            scroll.addWidget(btn);
-
-            xPos += btnWidth + spacing;
+            scroll.addWidget(createOptionButton(
+                    "§f" + display + "\n§7(" + safeTierName(c.tier()) + ")",
+                    isSelected, xPos, yPos, btnW, btnH,
+                    () -> selectUpgradeOption(c.blockId(), c.tier())));
+            xPos += btnW + spacing;
             added++;
         }
-
         return added > 0;
     }
 
     private void buildTierGrid(ComponentInfo rep, DraggableScrollableWidgetGroup scroll, List<Integer> tiers) {
-        // Small buttons
-        int btnWidth = 48;
-        int btnHeight = 24;
-        int spacing = 3;
-        int buttonsPerRow = 7;
+        int btnW = 48, btnH = 24, spacing = 3, perRow = 7, xPos = 0, yPos = 0, added = 0;
 
-        int xPos = 0;
-        int yPos = 0;
-        int added = 0;
-
-        ButtonWidget allBtn = createOptionButton(
+        scroll.addWidget(createOptionButton(
                 Component.translatable("gui.gtceuterminal.component_upgrade_dialog.option_all_any").getString(),
-                tierFilter == null,
-                xPos, yPos, btnWidth, btnHeight,
-                () -> onShowAllClicked());
-        scroll.addWidget(allBtn);
+                tierFilter == null, xPos, yPos, btnW, btnH, this::onShowAllClicked));
+        xPos += btnW + spacing;
+        added++;
 
-        // Duplicate maintained to preserve order (in case of duplicates)
-        java.util.LinkedHashSet<Integer> unique = new java.util.LinkedHashSet<>(tiers);
-
-        for (int tier : unique) {
+        for (int tier : new java.util.LinkedHashSet<>(tiers)) {
             if (tier == rep.getTier()) continue;
-
-            if (added > 0 && added % buttonsPerRow == 0) {
-                xPos = 0;
-                yPos += btnHeight + spacing;
-            }
-
-            ButtonWidget tierBtn = createTierButton(tier, xPos, yPos, btnWidth, btnHeight);
-            scroll.addWidget(tierBtn);
-
-            xPos += btnWidth + spacing;
+            if (added % perRow == 0) { xPos = 0; yPos += btnH + spacing; }
+            scroll.addWidget(createTierButton(tier, xPos, yPos, btnW, btnH));
+            xPos += btnW + spacing;
             added++;
         }
     }
 
     private void buildMaintenanceGrid(ComponentInfo rep, DraggableScrollableWidgetGroup scroll) {
-        String currentId = null;
-        try {
-            currentId = rep.getState().getBlock().builtInRegistryHolder().key().location().toString();
-        } catch (Exception ignored) {}
-
-        List<MaintenanceHatchConfig.MaintenanceHatchEntry> entries = new ArrayList<>(MaintenanceHatchConfig.getAllHatches());
+        String currentId = blockId(rep);
+        List<MaintenanceHatchConfig.MaintenanceHatchEntry> entries =
+                new ArrayList<>(MaintenanceHatchConfig.getAllHatches());
         entries.removeIf(Objects::isNull);
-        entries.sort((a, b) -> {
-            int c = Integer.compare(a.tier, b.tier);
-            if (c != 0) return c;
-            return String.valueOf(a.displayName).compareToIgnoreCase(String.valueOf(b.displayName));
-        });
+        entries.sort(Comparator.<MaintenanceHatchConfig.MaintenanceHatchEntry>comparingInt(e -> e.tier)
+                .thenComparing(e -> String.valueOf(e.displayName), String.CASE_INSENSITIVE_ORDER));
 
-        // Smaller boxes (like tier grid, but wider)
-        int btnWidth = 118;
-        int btnHeight = 26;
-        int spacing = 4;
-        int perRow = 3;
-
-        int xPos = 0;
-        int yPos = 0;
-        int added = 0;
-
+        int btnW = 118, btnH = 26, spacing = 4, perRow = 3, xPos = 0, yPos = 0, added = 0;
         for (var e : entries) {
             if (e == null || e.blockId == null) continue;
             if (currentId != null && currentId.equalsIgnoreCase(e.blockId)) continue;
-
-            if (added > 0 && added % perRow == 0) {
-                xPos = 0;
-                yPos += btnHeight + spacing;
-            }
-
-            String name = e.blockId;
-            try {
-                Block b = BuiltInRegistries.BLOCK.get(net.minecraft.resources.ResourceLocation.tryParse(e.blockId));
-                if (b != null) {
-                    String loc = Component.translatable(b.getDescriptionId()).getString();
-                    if (loc != null && !loc.isBlank()) name = loc;
-                }
-            } catch (Exception ignored) {}
-            if (name == null || name.isBlank()) {
-                name = (e.displayName != null && !e.displayName.isBlank()) ? e.displayName : e.blockId;
-            }
-            name = trimCommonSuffixes(name);
-
+            if (added > 0 && added % perRow == 0) { xPos = 0; yPos += btnH + spacing; }
+            String name = trimSuffixes(resolveBlockName(e.blockId, 20));
+            if (name.isBlank()) name = e.displayName != null ? e.displayName : e.blockId;
             String tierTag = (e.tierName != null && !e.tierName.isBlank()) ? e.tierName : safeTierName(e.tier);
-
-            String text = "§f" + name + "\n§7(" + tierTag + ")";
-
-            boolean isSelected = e.blockId.equals(selectedUpgradeId);
-
-            ButtonWidget btn = createOptionButton(
-                    text,
-                    isSelected,
-                    xPos, yPos,
-                    btnWidth, btnHeight,
-                    () -> selectUpgradeOption(e.blockId, e.tier)
-            );
-
-            scroll.addWidget(btn);
-            xPos += btnWidth + spacing;
+            boolean sel = e.blockId.equals(selectedUpgradeId);
+            scroll.addWidget(createOptionButton(
+                    "§f" + name + "\n§7(" + tierTag + ")", sel, xPos, yPos, btnW, btnH,
+                    () -> selectUpgradeOption(e.blockId, e.tier)));
+            xPos += btnW + spacing;
             added++;
         }
     }
 
     private void buildCoilGrid(ComponentInfo rep, DraggableScrollableWidgetGroup scroll) {
-        // Build list from GTCEuAPI.HEATING_COILS
-        class CoilEntry {
-            final String blockId;
-            final String display;
-            final int tier;
-
-            CoilEntry(String blockId, String display, int tier) {
-                this.blockId = blockId;
-                this.display = display;
-                this.tier = tier;
-            }
-        }
-
+        record CoilEntry(String blockId, String display, int tier) {}
         List<CoilEntry> list = new ArrayList<>();
         for (var entry : GTCEuAPI.HEATING_COILS.entrySet()) {
             ICoilType coilType = entry.getKey();
             if (coilType == null) continue;
-
             Block block = null;
-            try {
-                block = entry.getValue() != null ? entry.getValue().get() : null;
-            } catch (Exception ignored) {}
-
+            try { block = entry.getValue() != null ? entry.getValue().get() : null; }
+            catch (Exception ignored) {}
             if (block == null) continue;
-
-            String blockId = BuiltInRegistries.BLOCK.getKey(block).toString();
-            String name = Component.translatable(block.getDescriptionId()).getString(); // localized
-            if (name == null || name.isBlank()) name = coilType.getName();
-
-            name = trimCommonSuffixes(name);
-            list.add(new CoilEntry(blockId, name, coilType.getTier()));
+            String id   = BuiltInRegistries.BLOCK.getKey(block).toString();
+            String name = trimSuffixes(Component.translatable(block.getDescriptionId()).getString());
+            if (name.isBlank()) name = coilType.getName();
+            list.add(new CoilEntry(id, name, coilType.getTier()));
         }
+        list.sort(Comparator.comparingInt(CoilEntry::tier)
+                .thenComparing(CoilEntry::display, String.CASE_INSENSITIVE_ORDER));
 
-        // Sort by tier then name
-        list.sort(Comparator
-                .comparingInt((CoilEntry c) -> c.tier)
-                .thenComparing(c -> c.display, String.CASE_INSENSITIVE_ORDER));
-
-        String currentId = null;
-        try {
-            currentId = rep.getState().getBlock().builtInRegistryHolder().key().location().toString();
-        } catch (Exception ignored) {}
-
-        int btnWidth = 118;
-        int btnHeight = 26;
-        int spacing = 4;
-        int perRow = 3;
-
-        int xPos = 0;
-        int yPos = 0;
-        int added = 0;
-
-        for (CoilEntry e : list) {
-            if (e == null || e.blockId == null) continue;
-            if (currentId != null && currentId.equalsIgnoreCase(e.blockId)) continue;
-
-            if (added > 0 && added % perRow == 0) {
-                xPos = 0;
-                yPos += btnHeight + spacing;
-            }
-
-            boolean isSelected = e.blockId.equals(selectedUpgradeId);
-
-            String text = "§f" + e.display + "\n§7(" + safeTierName(e.tier) + ")";
-
-            ButtonWidget btn = createOptionButton(
-                    text,
-                    isSelected,
-                    xPos, yPos,
-                    btnWidth, btnHeight,
-                    () -> selectUpgradeOption(e.blockId, e.tier)
-            );
-
-            scroll.addWidget(btn);
-
-            xPos += btnWidth + spacing;
+        String currentId = blockId(rep);
+        int btnW = 118, btnH = 26, spacing = 4, perRow = 3, xPos = 0, yPos = 0, added = 0;
+        for (var e : list) {
+            if (e == null || e.blockId() == null) continue;
+            if (currentId != null && currentId.equalsIgnoreCase(e.blockId())) continue;
+            if (added > 0 && added % perRow == 0) { xPos = 0; yPos += btnH + spacing; }
+            boolean sel = e.blockId().equals(selectedUpgradeId);
+            scroll.addWidget(createOptionButton(
+                    "§f" + e.display() + "\n§7(" + safeTierName(e.tier()) + ")",
+                    sel, xPos, yPos, btnW, btnH,
+                    () -> selectUpgradeOption(e.blockId(), e.tier())));
+            xPos += btnW + spacing;
             added++;
         }
     }
 
-    private static String trimCommonSuffixes(String s) {
-        if (s == null) return "";
-        String out = s;
-        out = out.replace(" Coil Block", "");
-        out = out.replace(" Heating Coil", "");
-        out = out.replace(" Maintenance Hatch", " Maintenance");
-        return out.trim();
+    // ── Button factories ──────────────────────────────────────────────────────
+    private ButtonWidget createTierButton(int tier, int x, int y, int w, int h) {
+        boolean sel = (tier == selectedTier);
+        int bg = sel ? 0x6600FF00 : COLOR_BG_LIGHT;
+        int border = sel ? 0xFF00FF00 : COLOR_BORDER_LIGHT;
+        TextTexture text = new TextTexture("§f" + safeTierName(tier)).setWidth(w).setType(TextTexture.TextType.NORMAL);
+        ButtonWidget btn = new ButtonWidget(x, y, w, h,
+                new GuiTextureGroup(new ColorRectTexture(bg), new ColorBorderTexture(1, border), text),
+                cd -> onTierButtonClicked(tier));
+        btn.setHoverTexture(new GuiTextureGroup(
+                new ColorRectTexture(bg), new ColorBorderTexture(1, COLOR_TEXT_WHITE), text));
+        return btn;
     }
 
-    private static Position getAbsolutePos(WidgetGroup g) {
-        int ax = 0, ay = 0;
-        WidgetGroup cur = g;
+    private ButtonWidget createOptionButton(String textLines, boolean isSelected,
+                                            int x, int y, int w, int h, Runnable onClick) {
+        int bg = isSelected ? 0x6600FF00 : COLOR_BG_LIGHT;
+        int border = isSelected ? 0xFF00FF00 : COLOR_BORDER_LIGHT;
+        TextTexture text = new TextTexture(textLines).setWidth(w).setType(TextTexture.TextType.NORMAL);
+        ButtonWidget btn = new ButtonWidget(x, y, w, h,
+                new GuiTextureGroup(new ColorRectTexture(bg), new ColorBorderTexture(1, border), text),
+                cd -> onClick.run());
+        btn.setHoverTexture(new GuiTextureGroup(
+                new ColorRectTexture(bg), new ColorBorderTexture(1, COLOR_TEXT_WHITE), text));
+        return btn;
+    }
 
-        while (cur != null) {
-            Position p = cur.getPosition();
-            ax += p.x;
-            ay += p.y;
+    // ── Event handlers ────────────────────────────────────────────────────────
+    private void onTierButtonClicked(int tier) {
+        this.selectedTier      = tier;
+        this.tierFilter        = tier;
+        this.selectedUpgradeId = null;
+        // Repopulate tier buttons to update selection highlight
+        if (tierButtonsRow != null && currentRep != null) {
+            populateTierButtons(currentRep, tierButtonsRow);
+        }
+        // Repopulate variant scroll
+        if (currentRep != null) populateOptionsScroll(currentRep);
+        calculateMaterials();
+        refreshMaterialsPanel();
+    }
 
-            // getParent()
-            WidgetGroup parent = cur.getParent();
-            if (parent == null) break;
+    private void onShowAllClicked() {
+        this.tierFilter        = null;
+        this.selectedUpgradeId = null;
+        if (tierButtonsRow != null && currentRep != null) {
+            populateTierButtons(currentRep, tierButtonsRow);
+        }
+        if (optionsScroll != null) {
+            optionsScroll.clearAllWidgets();
+            optionsScroll.addWidget(new LabelWidget(4, 4, "§7Select a tier above"));
+        }
+        calculateMaterials();
+        refreshMaterialsPanel();
+    }
 
-            cur = parent;
+    private void refreshOptionsPanel() {
+    }
+
+    private void selectUpgradeOption(String upgradeId, int tier) {
+        this.selectedUpgradeId = upgradeId;
+        this.selectedTier      = tier;
+        GTCEUTerminalMod.LOGGER.info("Selected upgrade: {} (tier {})", upgradeId, tier);
+        calculateMaterials();
+        refreshMaterialsPanel();
+    }
+
+    // ── Business logic ────────────────────────────────────────────────────────
+    private void calculateMaterials() {
+        if (selectedTier == -1) return;
+        ComponentInfo rep = group.getRepresentative();
+        if (rep == null) return;
+
+        Map<Item, Integer> singleRequired = (selectedUpgradeId != null && !selectedUpgradeId.isBlank())
+                ? ComponentUpgradeHelper.getUpgradeItemsForBlockId(selectedUpgradeId)
+                : ComponentUpgradeHelper.getUpgradeItems(rep, selectedTier);
+
+        Map<Item, Integer> totalRequired = new HashMap<>();
+        for (var e : singleRequired.entrySet()) {
+            totalRequired.put(e.getKey(), e.getValue() * group.getCount());
         }
 
-        return new Position(ax, ay);
+        materials = MaterialCalculator.checkMaterialsAvailability(totalRequired, player, player.level());
     }
 
-    private WidgetGroup createButtons() {
-        WidgetGroup buttons = new WidgetGroup(10, dialogH - 35, dialogW - 20, 25);
-
-        confirmButton = new ButtonWidget(
-                0, 0, 140, 22,
-                new GuiTextureGroup(
-                        new ColorRectTexture(0xFF2E7D32),
-                        new ColorBorderTexture(1, COLOR_SUCCESS)
-                ),
-                cd -> performUpgrade()
-        );
-        confirmButton.setButtonTexture(new TextTexture(
-                Component.translatable("gui.gtceuterminal.component_upgrade_dialog.actions.confirm_change").getString()
-        )
-                .setWidth(140)
-                .setType(TextTexture.TextType.NORMAL));
-        confirmButton.setHoverTexture(new GuiTextureGroup(
-                new ColorRectTexture(0xFF43A047),
-                new ColorBorderTexture(1, COLOR_TEXT_WHITE)
-        ));
-
-        // Auto-craft button — only shown when ME is linked
-        boolean showAutoCraft = WirelessTerminalHandler.isLinked(getWirelessTerminal(player));
-        if (showAutoCraft) {
-            ButtonWidget autoCraftBtn = new ButtonWidget(
-                    145, 0, 100, 22,
-                    new GuiTextureGroup(
-                            new ColorRectTexture(0xFF1A3A6B),
-                            new ColorBorderTexture(1, 0xFF2E75B6)
-                    ),
-                    cd -> performAutoCraft()
-            );
-            autoCraftBtn.setButtonTexture(new TextTexture(
-                    Component.translatable("gui.gtceuterminal.component_upgrade_dialog.actions.auto_craft").getString()
-            )
-                    .setWidth(100)
-                    .setType(TextTexture.TextType.NORMAL));
-            autoCraftBtn.setHoverTexture(new GuiTextureGroup(
-                    new ColorRectTexture(0xFF243A6B),
-                    new ColorBorderTexture(1, COLOR_TEXT_WHITE)
-            ));
-            buttons.addWidget(autoCraftBtn);
+    private void performUpgrade() {
+        if (selectedTier == -1) {
+            player.displayClientMessage(
+                    Component.translatable("gui.gtceuterminal.component_upgrade_dialog.chat.select_upgrade_option_first"),
+                    true);
+            return;
         }
+        List<net.minecraft.core.BlockPos> positions = new ArrayList<>();
+        for (ComponentInfo c : group.getComponents()) positions.add(c.getPosition());
 
-        int cancelX = showAutoCraft ? dialogW - 20 - 100 : dialogW - 20 - 140;
-        int cancelW = showAutoCraft ? 96 : 140;
+        TerminalNetwork.CHANNEL.sendToServer(
+                new CPacketComponentUpgrade(positions, selectedTier, selectedUpgradeId, multiblock.getControllerPos()));
 
-        ButtonWidget cancel = new ButtonWidget(
-                cancelX, 0, cancelW, 22,
-                new GuiTextureGroup(
-                        new ColorRectTexture(COLOR_BG_LIGHT),
-                        new ColorBorderTexture(1, COLOR_BORDER_LIGHT)
-                ),
-                cd -> close()
-        );
-        cancel.setButtonTexture(new TextTexture(
-                Component.translatable("gui.gtceuterminal.component_upgrade_dialog.actions.cancel").getString()
-        )
-                .setWidth(cancelW)
-                .setType(TextTexture.TextType.NORMAL));
-        cancel.setHoverTexture(new GuiTextureGroup(
-                new ColorRectTexture(COLOR_BG_LIGHT),
-                new ColorBorderTexture(1, COLOR_TEXT_WHITE)
-        ));
-
-        buttons.addWidget(confirmButton);
-        buttons.addWidget(cancel);
-
-        return buttons;
+        player.displayClientMessage(
+                Component.translatable("gui.gtceuterminal.component_upgrade_dialog.chat.changing_components",
+                        group.getCount()), true);
+        close();
+        if (parentDialog != null) parentDialog.close();
     }
 
-    /** Triggers the analysis-then-confirm flow via ME for this upgrade. */
     private void performAutoCraft() {
         if (selectedTier == -1 && (selectedUpgradeId == null || selectedUpgradeId.isBlank())) {
             player.displayClientMessage(
-                    Component.translatable("gui.gtceuterminal.component_upgrade_dialog.chat.select_upgrade_option_first"), true);
+                    Component.translatable("gui.gtceuterminal.component_upgrade_dialog.chat.select_upgrade_option_first"),
+                    true);
             return;
         }
-
-        List<com.gtceuterminal.common.multiblock.ComponentInfo> components =
-                new ArrayList<>(group.getComponents());
-
         TerminalNetwork.CHANNEL.sendToServer(
                 new com.gtceuterminal.common.network.CPacketRequestUpgradeAnalysis(
-                        components,
+                        new ArrayList<>(group.getComponents()),
                         selectedTier,
                         selectedUpgradeId != null ? selectedUpgradeId : "",
-                        multiblock.getControllerPos()
-                )
-        );
-
+                        multiblock.getControllerPos()));
         player.displayClientMessage(
                 Component.translatable("gui.gtceuterminal.component_upgrade_dialog.chat.analyzing_me_network"), true);
         close();
         if (parentDialog != null) parentDialog.close();
     }
 
-    private void refreshTierSelectionPanel() {
-        if (tierSelectionPanel != null) {
-            waitToRemoved.add(tierSelectionPanel);
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    private ItemStack findWirelessTerminal() {
+        if (player == null) return ItemStack.EMPTY;
+        for (ItemStack s : new ItemStack[]{player.getMainHandItem(), player.getOffhandItem()}) {
+            if (WirelessTerminalHandler.isWirelessTerminal(s)) return s;
         }
-        tierSelectionPanel = createTierSelection();
-        addWidget(tierSelectionPanel);
+        for (ItemStack s : player.getInventory().items) {
+            if (WirelessTerminalHandler.isWirelessTerminal(s)) return s;
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private static String blockId(ComponentInfo rep) {
+        try { return rep.getState().getBlock().builtInRegistryHolder().key().location().toString(); }
+        catch (Exception ignored) { return null; }
+    }
+
+    private static String resolveBlockName(String blockId, int maxLen) {
+        String display = blockId;
+        try {
+            Block b = BuiltInRegistries.BLOCK.get(net.minecraft.resources.ResourceLocation.tryParse(blockId));
+            if (b != null) {
+                String loc = Component.translatable(b.getDescriptionId()).getString();
+                if (loc != null && !loc.isBlank()) display = loc;
+            }
+        } catch (Exception ignored) {}
+        if (display.length() > maxLen) display = display.substring(0, maxLen - 1) + "…";
+        return display;
+    }
+
+    private static String trimSuffixes(String s) {
+        if (s == null) return "";
+        return s.replace(" Coil Block", "")
+                .replace(" Heating Coil", "")
+                .replace(" Maintenance Hatch", " Maintenance")
+                .trim();
     }
 
     private static String safeTierName(int tier) {
@@ -759,312 +848,4 @@ public class ComponentUpgradeDialog extends DialogWidget {
         }
         return "T" + tier;
     }
-
-    private ButtonWidget createTierButton(int tier, int x, int y, int width, int height) {
-        String tierName = safeTierName(tier);
-        boolean isSelected = (tier == selectedTier);
-
-        TextTexture text = new TextTexture("§f" + tierName)
-                .setWidth(width)
-                .setType(TextTexture.TextType.NORMAL);
-
-        int bg = isSelected ? 0x6600FF00 : COLOR_BG_LIGHT;
-        int border = isSelected ? 0xFF00FF00 : COLOR_BORDER_LIGHT;
-
-        ButtonWidget btn = new ButtonWidget(
-                x, y, width, height,
-                new GuiTextureGroup(
-                        new ColorRectTexture(bg),
-                        new ColorBorderTexture(1, border),
-                        text
-                ),
-                cd -> onTierButtonClicked(tier)
-        );
-
-        btn.setHoverTexture(new GuiTextureGroup(
-                new ColorRectTexture(bg),
-                new ColorBorderTexture(1, COLOR_TEXT_WHITE),
-                text
-        ));
-
-        return btn;
-    }
-
-    private ButtonWidget createOptionButton(String textLines,
-                                            boolean isSelected,
-                                            int x, int y,
-                                            int width, int height,
-                                            Runnable onClick) {
-
-        TextTexture text = new TextTexture(textLines)
-                .setWidth(width)
-                .setType(TextTexture.TextType.NORMAL);
-
-        int bg = isSelected ? 0x6600FF00 : COLOR_BG_LIGHT;
-        int border = isSelected ? 0xFF00FF00 : COLOR_BORDER_LIGHT;
-
-        ButtonWidget btn = new ButtonWidget(
-                x, y, width, height,
-                new GuiTextureGroup(
-                        new ColorRectTexture(bg),
-                        new ColorBorderTexture(1, border),
-                        text
-                ),
-                cd -> onClick.run()
-        );
-
-        btn.setHoverTexture(new GuiTextureGroup(
-                new ColorRectTexture(bg),
-                new ColorBorderTexture(1, COLOR_TEXT_WHITE),
-                text
-        ));
-
-        return btn;
-    }
-
-    private void refreshUpgradeOptions() {
-        if (optionsScroll == null || currentRep == null) return;
-
-        optionsScroll.clearAllWidgets();
-
-        // 1) rebuild options list (universal o fallback) with current filter
-        if (!buildUniversalCandidatesGrid(currentRep, optionsScroll, tierFilter)) {
-            // Old fallback
-            List<Integer> tiers = ComponentUpgradeHelper.getAvailableTiers(currentRep.getType());
-            buildTierGrid(currentRep, optionsScroll, tiers);
-        }
-
-        // 2) recalculate materials based on new selection (which may have been reset)
-        calculateMaterials();
-    }
-
-
-    private void onTierButtonClicked(int tier) {
-        this.selectedTier = tier;
-        this.tierFilter = tier;
-        this.selectedUpgradeId = null;
-        refreshUpgradeOptions();
-    }
-
-    private void onShowAllClicked() {
-        this.tierFilter = null;
-        this.selectedUpgradeId = null;
-        refreshUpgradeOptions();
-    }
-
-    private void refreshUniversalOptions() {
-        if (optionsScroll == null || currentRep == null) return;
-        try {
-            optionsScroll.clearAllWidgets();
-        } catch (Throwable t1) {
-            try {
-                optionsScroll.clearAllWidgets();
-            } catch (Throwable t2) {
-                // optionsScroll.widgets.clear();
-            }
-        }
-
-        if (!buildUniversalCandidatesGrid(currentRep, optionsScroll, tierFilter)) {
-            List<Integer> tiers = ComponentUpgradeHelper.getAvailableTiers(currentRep.getType());
-            buildTierGrid(currentRep, optionsScroll, tiers);
-        }
-        calculateMaterials();
-    }
-
-
-    private void selectUpgradeOption(String upgradeId, int tier) {
-        this.selectedUpgradeId = upgradeId;
-        this.selectedTier = tier; // keep tier for validation/materials
-
-        // refreshTierSelectionPanel();
-        calculateMaterials();
-        refreshMaterialsPanel();
-
-        GTCEUTerminalMod.LOGGER.info("Selected upgrade option: {} (tier {})", upgradeId, tier);
-    }
-
-    private void calculateMaterials() {
-        if (selectedTier == -1) return;
-
-        ComponentInfo rep = group.getRepresentative();
-        if (rep == null) return;
-
-        Map<Item, Integer> singleRequired = (selectedUpgradeId != null && !selectedUpgradeId.isBlank())
-                ? ComponentUpgradeHelper.getUpgradeItemsForBlockId(selectedUpgradeId)
-                : ComponentUpgradeHelper.getUpgradeItems(rep, selectedTier);
-
-        Map<Item, Integer> totalRequired = new HashMap<>();
-        for (var entry : singleRequired.entrySet()) {
-            totalRequired.put(entry.getKey(), entry.getValue() * group.getCount());
-        }
-
-        // Creative
-        if (player.isCreative()) {
-            materials = MaterialCalculator.checkMaterialsAvailability(
-                    totalRequired, player, player.level()
-            );
-            hasEnough = true;
-            return;
-        }
-
-        // Survival
-        materials = MaterialCalculator.checkMaterialsAvailability(
-                totalRequired, player, player.level()
-        );
-        hasEnough = MaterialCalculator.hasEnoughMaterials(materials);
-    }
-
-    private WidgetGroup createMaterialsPanel() {
-        WidgetGroup panel = new WidgetGroup(10, 149, dialogW - 20, 156);
-
-        LabelWidget label = new LabelWidget(5, 4,
-                Component.translatable("gui.gtceuterminal.component_upgrade_dialog.materials.required_label").getString());
-        label.setTextColor(COLOR_TEXT_WHITE);
-        panel.addWidget(label);
-
-        if (!player.level().isClientSide && WirelessTerminalHandler.isLinked(getWirelessTerminal(player))) {
-            LabelWidget warning = new LabelWidget(5, 16,
-                    Component.translatable("gui.gtceuterminal.component_upgrade_dialog.materials.me_materials_verified").getString());
-            warning.setTextColor(0xFFFFAA00);
-            panel.addWidget(warning);
-        }
-
-        if (player.isCreative()) {
-            LabelWidget creativeLabel = new LabelWidget(5, 60,
-                    Component.translatable("gui.gtceuterminal.component_upgrade_dialog.materials.creative_mode").getString());
-            creativeLabel.setTextColor(COLOR_SUCCESS);
-            panel.addWidget(creativeLabel);
-
-            LabelWidget infoLabel = new LabelWidget(5, 75,
-                    Component.translatable("gui.gtceuterminal.component_upgrade_dialog.materials.select_option_to_see").getString());
-            infoLabel.setTextColor(COLOR_TEXT_GRAY);
-            panel.addWidget(infoLabel);
-        } else if (selectedTier == -1) {
-            LabelWidget placeholder = new LabelWidget(5, 70,
-                    Component.translatable("gui.gtceuterminal.component_upgrade_dialog.materials.select_option_to_see").getString());
-            placeholder.setTextColor(COLOR_TEXT_GRAY);
-            panel.addWidget(placeholder);
-        }
-
-        return panel;
-    }
-
-    private void refreshMaterialsPanel() {
-        if (materialsPanel != null) {
-            this.removeWidget(materialsPanel);
-        }
-
-        // Calcular posición Y (usar la original 149 para que funcione)
-        materialsPanel = new WidgetGroup(10, 149, dialogW - 20, 156);
-
-        LabelWidget label = new LabelWidget(5, 4,
-                Component.translatable("gui.gtceuterminal.component_upgrade_dialog.materials.required_label").getString());
-        label.setTextColor(COLOR_TEXT_WHITE);
-        materialsPanel.addWidget(label);
-
-        if (selectedTier != -1 && materials != null && !materials.isEmpty()) {
-            if (player.isCreative()) {
-                LabelWidget creativeNote = new LabelWidget(5, 16,
-                        Component.translatable("gui.gtceuterminal.component_upgrade_dialog.materials.creative_mode_not_required").getString());
-                creativeNote.setTextColor(COLOR_SUCCESS);
-                materialsPanel.addWidget(creativeNote);
-            }
-
-            int yOffset = player.isCreative() ? 30 : 18;
-            int height = player.isCreative() ? 121 : 133;
-
-            LDLMaterialListWidget list = new LDLMaterialListWidget(
-                    0, yOffset, dialogW - 20, height, materials
-            );
-            materialsPanel.addWidget(list);
-        } else {
-            if (player.isCreative()) {
-                LabelWidget info = new LabelWidget(5, 75,
-                        Component.translatable("gui.gtceuterminal.component_upgrade_dialog.materials.select_option_to_see").getString());
-                info.setTextColor(COLOR_TEXT_GRAY);
-                materialsPanel.addWidget(info);
-            } else if (selectedTier == -1) {
-                LabelWidget info = new LabelWidget(5, 70,
-                        Component.translatable("gui.gtceuterminal.component_upgrade_dialog.materials.select_option_to_see").getString());
-                info.setTextColor(COLOR_TEXT_GRAY);
-                materialsPanel.addWidget(info);
-            }
-        }
-        this.addWidget(materialsPanel);
-    }
-
-    private ItemStack getWirelessTerminal(Player player) {
-        if (player == null) return ItemStack.EMPTY;
-
-        // Hands~
-        ItemStack main = player.getMainHandItem();
-        if (WirelessTerminalHandler.isWirelessTerminal(main)) return main;
-
-        ItemStack off = player.getOffhandItem();
-        if (WirelessTerminalHandler.isWirelessTerminal(off)) return off;
-
-        // Inventory
-        for (ItemStack s : player.getInventory().items) {
-            if (WirelessTerminalHandler.isWirelessTerminal(s)) return s;
-        }
-        return ItemStack.EMPTY;
-    }
-
-    private void performUpgrade() {
-        List<net.minecraft.core.BlockPos> positions = new ArrayList<>();
-        for (ComponentInfo component : group.getComponents()) {
-            positions.add(component.getPosition());
-        }
-
-        TerminalNetwork.CHANNEL.sendToServer(
-                new CPacketComponentUpgrade(positions, selectedTier, selectedUpgradeId, multiblock.getControllerPos())
-        );
-
-        player.displayClientMessage(
-                Component.translatable(
-                        "gui.gtceuterminal.component_upgrade_dialog.chat.changing_components",
-                        group.getCount()
-                ),
-                true
-        );
-
-        close();
-        if (parentDialog != null) parentDialog.close();
-
-    }
-
-    private void openUpgradeDialog(ComponentGroup group) {
-        WidgetGroup root = this.gui.mainGroup;
-
-        ComponentUpgradeDialog dialog = new ComponentUpgradeDialog(
-                root,
-                null,
-                this,
-                group,
-                multiblock,
-                player
-        );
-
-        int rw = root.getSize() != null ? root.getSize().width : 400;
-        int rh = root.getSize() != null ? root.getSize().height : 350;
-
-        dialog.setSelfPosition(new Position(
-                Math.max(0, (rw - 400) / 2),
-                Math.max(0, (rh - 380) / 2)
-        ));
-
-        bringToFront(root, dialog);
-    }
-
-    private static void bringToFront(WidgetGroup parent, Widget w) {
-        parent.widgets.remove(w);
-        parent.widgets.add(w);
-    }
-
-    @Override
-    public void close() {
-        super.close();
-        if (parentDialog != null) parentDialog.setActive(true);
-    }
-
-} // First worst file.
+}

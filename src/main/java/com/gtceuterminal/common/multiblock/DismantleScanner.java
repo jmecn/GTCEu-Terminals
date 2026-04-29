@@ -3,6 +3,8 @@ package com.gtceuterminal.common.multiblock;
 import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
 import com.gregtechceu.gtceu.api.pattern.MultiblockState;
 
+import com.gtceuterminal.common.config.ItemsConfig;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -62,6 +64,7 @@ public class DismantleScanner {
         public List<ItemStack> getItemsToRecover() {
             List<ItemStack> items = new ArrayList<>();
             for (Map.Entry<Block, Integer> entry : blockCounts.entrySet()) {
+                if (ItemsConfig.isDismantlerBlacklisted(entry.getKey())) continue;
                 ItemStack stack = new ItemStack(entry.getKey().asItem(), entry.getValue());
                 if (!stack.isEmpty()) {
                     items.add(stack);

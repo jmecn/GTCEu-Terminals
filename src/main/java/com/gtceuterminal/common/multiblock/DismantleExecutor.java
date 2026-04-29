@@ -2,6 +2,8 @@ package com.gtceuterminal.common.multiblock;
 
 import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
 
+import com.gtceuterminal.common.config.ItemsConfig;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -35,11 +37,6 @@ public class DismantleExecutor {
         List<ItemStack> items = new ArrayList<>();
         BlockPos controllerPos = controller.getPos();
 
-        // Identify upper halves of double-block structures (doors, etc.)
-        // The multiblock cache contains BOTH block positions of a door, but the door
-        // item should only be refunded ONCE (from the lower half). Skipping the upper
-        // half prevents the x2 duplication that results in up to 9 extra doors per
-        // cleanroom depending on door count.
         Set<BlockPos> skipPositions = new HashSet<>();
         for (BlockPos pos : scanResult.getAllBlocks()) {
             BlockState st = level.getBlockState(pos);
@@ -52,21 +49,32 @@ public class DismantleExecutor {
         // 1) First everything except the controller (avoids invalidating early state)
         for (BlockPos pos : scanResult.getAllBlocks()) {
             if (pos.equals(controllerPos)) continue;
-            if (skipPositions.contains(pos)) continue; // upper half — item already counted from lower
+            if (skipPositions.contains(pos)) continue;
+            BlockState bsCheck = level.getBlockState(pos);
+            if (ItemsConfig.isDismantlerBlacklisted(bsCheck.getBlock())) continue;
             ItemStack refund = createRefundStack(level, pos);
             mergeInto(items, refund);
         }
 
         // 2) Then the controller
-        ItemStack controllerRefund = createRefundStack(level, controllerPos);
-        mergeInto(items, controllerRefund);
+        BlockState controllerBs = level.getBlockState(controllerPos);
+        if (!ItemsConfig.isDismantlerBlacklisted(controllerBs.getBlock())) {
+            ItemStack controllerRefund = createRefundStack(level, controllerPos);
+            mergeInto(items, controllerRefund);
+        }
 
         // Break all blocks (without drops), controller at the end
         for (BlockPos pos : scanResult.getAllBlocks()) {
             if (pos.equals(controllerPos)) continue;
+            BlockState bsBreak = level.getBlockState(pos);
+            if (ItemsConfig.isDismantlerBlacklisted(bsBreak.getBlock())) continue;
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
         }
-        level.setBlock(controllerPos, Blocks.AIR.defaultBlockState(), 3);
+        // Only remove the controller if it isn't blacklisted
+        BlockState controllerBreakBs = level.getBlockState(controllerPos);
+        if (!ItemsConfig.isDismantlerBlacklisted(controllerBreakBs.getBlock())) {
+            level.setBlock(controllerPos, Blocks.AIR.defaultBlockState(), 3);
+        }
 
         // Give items to the player
         for (ItemStack stack : items) {

@@ -54,16 +54,20 @@ public final class SchematicUtils {
 
     private static BlockState rotateBlockStateOnce(BlockState state) {
         try {
-            if (state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
-                Direction facing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
-                if (facing.getAxis().isHorizontal())
-                    return state.setValue(BlockStateProperties.HORIZONTAL_FACING, facing.getClockWise());
+            for (var prop : state.getProperties()) {
+                if (!(prop instanceof net.minecraft.world.level.block.state.properties.DirectionProperty dirProp))
+                    continue;
+
+                Direction facing = state.getValue(dirProp);
+                if (!facing.getAxis().isHorizontal()) continue;
+
+                Direction rotated = facing.getClockWise();
+
+                if (dirProp.getPossibleValues().contains(rotated)) {
+                    return state.setValue(dirProp, rotated);
+                }
             }
-            if (state.hasProperty(BlockStateProperties.FACING)) {
-                Direction facing = state.getValue(BlockStateProperties.FACING);
-                if (facing.getAxis().isHorizontal())
-                    return state.setValue(BlockStateProperties.FACING, facing.getClockWise());
-            }
+
             if (state.hasProperty(BlockStateProperties.AXIS)) {
                 var axis = state.getValue(BlockStateProperties.AXIS);
                 if (axis == Direction.Axis.X)
@@ -86,9 +90,6 @@ public final class SchematicUtils {
      * Returns the world position where a schematic should be placed, mirroring
      * the logic used by SchematicPreviewRenderer so the paste lands exactly on
      * the ghost preview.
-     *
-     * If the player is looking at a block, places on the adjacent face.
-     * Otherwise, places {@code distance} blocks ahead of the player's eyes.
      */
     public static BlockPos getTargetPlacementPos(Player player, double distance) {
         double raycastDistance = Math.max(10.0, distance + 5.0);

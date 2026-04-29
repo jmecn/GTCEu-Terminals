@@ -2,7 +2,13 @@ package com.gtceuterminal.common.config;
 
 import com.gtceuterminal.GTCEUTerminalMod;
 
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Block;
+import net.minecraftforge.registries.ForgeRegistries;
+
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 // Configuration for items the Energy Analyzer, Multi-Structure Manager, and Schematic Interface.
 public class ItemsConfig {
@@ -25,11 +31,16 @@ public class ItemsConfig {
     private static boolean sch_allowAE2ConfigCopy    = true;
     private static boolean sch_plannerBuildAllEnabled = false;
 
+    // ─── Dismantler ───────────────────────────────────────────────────────────
+    // Resolved Block objects for fast lookup at dismantle time
+    private static Set<Block> dis_blockBlacklist = new HashSet<>();
+
     // ─── Load ─────────────────────────────────────────────────────────────────
     public static void load() {
         LOADER.writeDefaults(List.of(
 
                 // Energy Analyzer
+                YamlConfigLoader.ConfigEntry.section("Energy Analyzer"),
                 YamlConfigLoader.ConfigEntry.of("energy_analyzer.max_linked_machines", 16,
                         "[Energy Analyzer] Maximum machines linkable per item (1-64)"),
                 YamlConfigLoader.ConfigEntry.of("energy_analyzer.refresh_interval_ticks", 20,
@@ -40,6 +51,7 @@ public class ItemsConfig {
                         "[Energy Analyzer] Seconds of energy history to graph (5-120)"),
 
                 // Multi Structure Manager
+                YamlConfigLoader.ConfigEntry.section("Multi Structure Manager"),
                 YamlConfigLoader.ConfigEntry.of("manager.max_detected_multiblocks", 32,
                         "[Manager] Maximum number of multiblocks detected and shown in the UI (1-128)"),
                 YamlConfigLoader.ConfigEntry.of("manager.allow_me_network_upgrade", true,
@@ -50,10 +62,18 @@ public class ItemsConfig {
                         "[Manager] Highlight color as hex RGB, e.g. 00AAFF = blue, FFAA00 = orange, 00FF88 = green"),
 
                 // Schematic Interface
+                YamlConfigLoader.ConfigEntry.section("Schematic Interface"),
                 YamlConfigLoader.ConfigEntry.of("schematic.allow_ae2_config_copy", true,
                         "[Schematic] Preserve AE2/ME bus slot configurations when copying and pasting multiblocks (requires AE2)"),
                 YamlConfigLoader.ConfigEntry.of("schematic.planner_build_all_enabled", false,
-                        "[Schematic] Allow the Placement Planner 'Build All' button to place real blocks in the world. Disabled by default — the planner is a planning tool, not a builder.")
+                        "[Schematic] Allow the Placement Planner 'Build All' button to place real blocks in the world. Disabled by default — the planner is a planning tool, not a builder."),
+
+                // Dismantler
+                YamlConfigLoader.ConfigEntry.section("Dismantler"),
+                YamlConfigLoader.ConfigEntry.of("dismantler.block_blacklist", List.of(),
+                        "[Dismantler] Registry IDs of blocks the Dismantler will NEVER refund or remove.\n" +
+                                "  Use this to protect blocks that cannot normally be obtained (e.g. bedrock, barriers, etc.\n" +
+                                "- minecraft:bedrock, - minecraft; barriers, -kubejs:custom_block. \n")
         ));
 
         // ── Read Energy Analyzer ──────────────────────────────────────────────
@@ -71,6 +91,28 @@ public class ItemsConfig {
         // ── Read Schematic Interface ──────────────────────────────────────────
         sch_allowAE2ConfigCopy     = LOADER.getBoolean("schematic.allow_ae2_config_copy", true);
         sch_plannerBuildAllEnabled = LOADER.getBoolean("schematic.planner_build_all_enabled", false);
+
+        // ── Read Dismantler ───────────────────────────────────────────────────
+        dis_blockBlacklist = new HashSet<>();
+        List<String> rawBlacklist = LOADER.getStringList("dismantler.block_blacklist");
+        for (String entry : rawBlacklist) {
+            String trimmed = entry.trim();
+            if (trimmed.isEmpty()) continue;
+            ResourceLocation rl = ResourceLocation.tryParse(trimmed);
+            if (rl == null) {
+                GTCEUTerminalMod.LOGGER.warn("[Dismantler] Invalid block ID in blacklist: '{}' — skipping", trimmed);
+                continue;
+            }
+            Block block = ForgeRegistries.BLOCKS.getValue(rl);
+            if (block == null) {
+                GTCEUTerminalMod.LOGGER.warn("[Dismantler] Unknown block '{}' in blacklist — skipping (not registered?)", trimmed);
+                continue;
+            }
+            dis_blockBlacklist.add(block);
+        }
+        if (!dis_blockBlacklist.isEmpty()) {
+            GTCEUTerminalMod.LOGGER.info("[Dismantler] Block blacklist loaded: {} entries", dis_blockBlacklist.size());
+        }
 
         GTCEUTerminalMod.LOGGER.info(
                 "ItemsConfig loaded — EnergyAnalyzer: maxMachines={}, refresh={}t, history={}s | Manager: maxMultiblocks={}, allowME={} | Schematic: ae2Copy={}",
@@ -97,6 +139,11 @@ public class ItemsConfig {
     // ─── Schematic Interface Getters ──────────────────────────────────────────
     public static boolean isSchAllowAE2ConfigCopy()     { return sch_allowAE2ConfigCopy; }
     public static boolean isSchPlannerBuildAllEnabled() { return sch_plannerBuildAllEnabled; }
+
+    // ─── Dismantler Getters ───────────────────────────────────────────────────
+    public static boolean isDismantlerBlacklisted(Block block) {
+        return dis_blockBlacklist.contains(block);
+    }
 
     // ─── Util ─────────────────────────────────────────────────────────────────
     private static int clamp(int value, int min, int max) {

@@ -200,6 +200,8 @@
   "gui.gtceuterminal.multiblock_manager.rename_dialog.confirm": "§aConfirm",
   "gui.gtceuterminal.multiblock_manager.rename_dialog.clear_name": "§cClear name",
   "gui.gtceuterminal.multiblock_manager.refreshed_found": "§aRefreshed - Found %s multiblocks",
+  "gui.gtceuterminal.multiblock_manager.footer_summary": "%s multiblocks within %sm",
+  "gui.gtceuterminal.multiblock_manager.none_found": "No multiblocks found nearby.",
 
   "gui.gtceuterminal.dismantler.title": "§l§fMultiblock Dismantler",
   "gui.gtceuterminal.dismantler.coords_format": "§7[%s, %s, %s]",
@@ -304,6 +306,7 @@
   "gui.gtceuterminal.component_detail_dialog.list.header": "§l§7Component Groups:",
   "gui.gtceuterminal.component_detail_dialog.entry.count": "§7Count: §f%s",
   "gui.gtceuterminal.component_detail_dialog.entry.tier": "§7Tier: §f%s",
+  "gui.gtceuterminal.component_detail_dialog.info.summary": "Tier: %s  ·  %s  ·  %s components (%s groups)",
 
   "gui.gtceuterminal.group_upgrade_dialog.title": "§l§fUpgrade Group Confirmation",
   "gui.gtceuterminal.group_upgrade_dialog.upgrade_x": "§eUpgrade %sx %s",
@@ -326,8 +329,6 @@
   "gui.gtceuterminal.coil_tier.trinium": "Trinium",
   "gui.gtceuterminal.coil_tier.tritanium": "Tritanium",
   "gui.gtceuterminal.coil_tier.unknown": "Unknown Coil",
-
-  "gui.gtceuterminal.component_upgrade_dialog.title": "§l§fUpgrade %s",
 
   "component.gtceuterminal.component_type.energy_hatch": "Energy Hatch",
   "component.gtceuterminal.component_type.dynamo_hatch": "Dynamo Hatch",
@@ -389,6 +390,8 @@
   "gui.gtceuterminal.component_upgrade_dialog.materials.select_option_to_see": "§7Select an option to see materials",
   "gui.gtceuterminal.component_upgrade_dialog.materials.creative_mode_not_required": "§a[Creative Mode - Not Required]",
   "gui.gtceuterminal.component_upgrade_dialog.option_all_any": "§fALL\n§7(any)",
+  "gui.gtceuterminal.component_upgrade_dialog.title": "§l§fUpgrade %s",
+  "gui.gtceuterminal.component_upgrade_dialog.tier_selection.pick_tier_first": "Select a tier above to see variants",
 
   "gui.gtceuterminal.material_list.quantity.me": "§a%s§7/%s §a[ME]",
   "gui.gtceuterminal.material_list.quantity.inv": "§7%s/%s [Inv]",
